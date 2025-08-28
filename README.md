@@ -3,8 +3,9 @@
 > Production‑ready monorepo for a modern store: JWT auth, carts, checkout, orders, payments, admin, and more. Built with **Django REST Framework** (API) and **Next.js** (frontend) using clean architecture, type‑safe clients, and a beautiful UI.
 
 <p align="center">
-  <img src="docs/cover.png" alt="Project cover" width="840"/>
+  <img src="https://raw.githubusercontent.com/ManojPaloi/full-stack-e-commerce-project-using-DRF-and-NEXT.Js/main/docs/cover.png" alt="Project cover" width="840"/>
 </p>
+
 
 
 
