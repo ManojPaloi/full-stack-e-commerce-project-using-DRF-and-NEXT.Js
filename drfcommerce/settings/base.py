@@ -21,11 +21,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = [
-    "e-commerce-api-a5il.onrender.com",
-    "127.0.0.1",
-    "localhost",
-]
+ALLOWED_HOSTS = ["*"]
 
 
 # -------------------------------------------------------------------
