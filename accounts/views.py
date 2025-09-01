@@ -159,7 +159,7 @@ class LogoutView(APIView):
 class ProfileView(generics.RetrieveUpdateAPIView):
     """Retrieve or update authenticated user profile."""
     serializer_class = ProfileUpdateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_object(self):
         return self.request.user
