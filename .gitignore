@@ -1,0 +1,72 @@
+# ----------------------------
+# Python / Django
+# ----------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
+*.pot
+*.pyc
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+local_settings.py
+migrations/__pycache__/
+*.mo
+
+# ----------------------------
+# Virtual environments
+# ----------------------------
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# ----------------------------
+# Node.js / Next.js
+# ----------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+out/
+coverage/
+.cache/
+.eslintcache
+stylelintcache
+.next.cache/
+
+# ----------------------------
+# Environment / secrets
+# ----------------------------
+.env
+.env.*
+!.env.example
+
+# ----------------------------
+# Editors / IDEs
+# ----------------------------
+.vscode/
+*.code-workspace
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ----------------------------
+# OS / Misc
+# ----------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
