@@ -26,5 +26,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS]
+ALLOWED_HOSTS = [
+    "e-commerce-api-a5il.onrender.com",  # Add your Render URL here
+    "127.0.0.1",  # optional, for local testing
+    "localhost",  # optional
+]
