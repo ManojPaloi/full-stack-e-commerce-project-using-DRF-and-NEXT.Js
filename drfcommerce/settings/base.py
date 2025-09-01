@@ -21,12 +21,11 @@ SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "full-stack-e-commerce-project-using-drf-qc82.onrender.com",
-]
-
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    "127.0.0.1,localhost,full-stack-e-commerce-project-using-drf-qc82.onrender.com"
+).split(",")
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS]
 # -------------------------------------------------------------------
 # Installed apps
 # -------------------------------------------------------------------
