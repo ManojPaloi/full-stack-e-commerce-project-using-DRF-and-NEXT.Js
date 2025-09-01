@@ -132,7 +132,7 @@ class LoginView(APIView):
 
 class LogoutView(APIView):
     """Blacklist JWT refresh token to log out user."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
