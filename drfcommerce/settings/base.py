@@ -83,6 +83,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "drfcommerce.wsgi.application"
 
+CORS_ALLOW_ALL_ORIGINS = True
 
 
 
