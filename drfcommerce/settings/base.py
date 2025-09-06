@@ -83,15 +83,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "drfcommerce.wsgi.application"
 
-# -------------------------------------------------------------------
-# Database (SQLite default, override in local.py or production.py)
-# -------------------------------------------------------------------
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#     }
-# }
 
 # -------------------------------------------------------------------
 # Password validation

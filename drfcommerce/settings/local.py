@@ -1,5 +1,4 @@
 from .base import *
-import os
 
 DEBUG = True
 
@@ -10,4 +9,9 @@ DATABASES = {
     }
 }
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# Local dev: don’t enforce HTTPS-only cookies
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+SECURE_HSTS_SECONDS = 0
+
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
