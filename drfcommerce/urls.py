@@ -42,7 +42,7 @@ urlpatterns = [
     path("api/", api_root, name="api-root"),
 
     # Browsable API login/logout
-    path("api-auth/", include("rest_framework.urls")),
+    # path("api-auth/", include("rest_framework.urls")),
 
     # Accounts app
     path("api/accounts/", include("accounts.urls")),
