@@ -131,16 +131,9 @@ class LoginView(APIView):
         )
 
 
-from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.views import APIView
-
-
 class LogoutView(APIView):
     """Blacklist JWT refresh token to log out user."""
-    permission_classes = [IsAuthenticated]  # not AllowAny
+    permission_classes = [AllowAny]
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
