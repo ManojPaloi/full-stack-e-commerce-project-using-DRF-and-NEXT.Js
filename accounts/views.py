@@ -2,7 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
@@ -100,11 +100,9 @@ class RegisterView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-
 class LoginView(APIView):
     """Authenticate user and return JWT tokens."""
     permission_classes = [AllowAny]
-    authentication_classes = [] 
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={"request": request})
@@ -118,12 +116,13 @@ class LoginView(APIView):
             )
 
         refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
 
         return Response(
             {
                 "status": "success",
-                "message": "Login successful 🎉 You can login using either your username or your email.",
-                "access": str(refresh.access_token),
+                "message": "Login successful 🎉 You can login using either your username or email.",
+                "access": access_token,
                 "refresh": str(refresh),
                 "user": UserSerializer(user).data,
             },
@@ -150,7 +149,7 @@ class LogoutView(APIView):
                 {"status": "success", "message": "Logout successful."},
                 status=status.HTTP_200_OK,
             )
-        except Exception:
+        except TokenError:
             return Response(
                 {"status": "error", "message": "Invalid or expired refresh token."},
                 status=status.HTTP_400_BAD_REQUEST,
