@@ -1,4 +1,3 @@
-# settings/base.py
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -9,24 +8,19 @@ from dotenv import load_dotenv
 # -------------------------------------------------------------------
 load_dotenv()
 
-# -------------------------------------------------------------------
-# Base directory
-# -------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# -------------------------------------------------------------------
-# Security
-# -------------------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS", "localhost,127.0.0.1"
+).split(",")
 
 # -------------------------------------------------------------------
 # Installed apps
 # -------------------------------------------------------------------
 INSTALLED_APPS = [
-    # Django core
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -35,8 +29,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     # Local apps
-    "main",
     "accounts",
+    "main",
 
     # Third-party
     "rest_framework",
@@ -58,6 +52,41 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+
+
+
+
+CORS_ALLOW_ALL_ORIGINS = True  # optional, currently set
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+
+
+
+
+
+
+
 
 # -------------------------------------------------------------------
 # URL / WSGI
@@ -128,7 +157,7 @@ AUTH_USER_MODEL = "accounts.CustomUser"
 
 AUTHENTICATION_BACKENDS = [
     "accounts.backends.EmailOrUsernameModelBackend",  # custom backend
-    "django.contrib.auth.backends.ModelBackend",      # default
+    "django.contrib.auth.backends.ModelBackend",
 ]
 
 # -------------------------------------------------------------------
@@ -137,12 +166,13 @@ AUTHENTICATION_BACKENDS = [
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",
     ],
 }
-
 
 # -------------------------------------------------------------------
 # JWT Settings
@@ -153,27 +183,33 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
-
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
-
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
-
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
     "TOKEN_TYPE_CLAIM": "token_type",
     "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
 }
 
 # -------------------------------------------------------------------
-# CORS Settings
+# CORS
 # -------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = os.getenv(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:3000,http://127.0.0.1:3000,https://mern-ecommerce-woad-three.vercel.app"
 ).split(",")
+
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://mern-ecommerce-woad-three.vercel.app",
@@ -183,9 +219,7 @@ CSRF_TRUSTED_ORIGINS = [
 # -------------------------------------------------------------------
 # Email (for OTP / Forgot Password)
 # -------------------------------------------------------------------
-EMAIL_BACKEND = os.getenv(
-    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
-)
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True

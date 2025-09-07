@@ -6,6 +6,8 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 import random
 
 from .models import CustomUser, EmailOTP, PendingUser
@@ -100,9 +102,13 @@ class RegisterView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
+# ------------------------
+# Login View
+# ------------------------
+@method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
-    """Authenticate user and return JWT tokens."""
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={"request": request})
@@ -112,26 +118,28 @@ class LoginView(APIView):
         if not user.is_active:
             return Response(
                 {"status": "error", "message": "Please verify your email before login."},
-                status=status.HTTP_403_FORBIDDEN,
+                status=403,
             )
 
         refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
 
         return Response(
             {
                 "status": "success",
-                "message": "Login successful 🎉 You can login using either your username or email.",
-                "access": access_token,
+                "message": "Login successful 🎉",
+                "access": str(refresh.access_token),
                 "refresh": str(refresh),
                 "user": UserSerializer(user).data,
             },
-            status=status.HTTP_200_OK,
+            status=200,
         )
 
 
+# ------------------------
+# Logout View
+# ------------------------
+@method_decorator(csrf_exempt, name='dispatch')
 class LogoutView(APIView):
-    """Blacklist JWT refresh token to log out user."""
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -139,7 +147,7 @@ class LogoutView(APIView):
         if not refresh_token:
             return Response(
                 {"status": "error", "message": "Refresh token required."},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=400,
             )
 
         try:
@@ -147,12 +155,12 @@ class LogoutView(APIView):
             token.blacklist()
             return Response(
                 {"status": "success", "message": "Logout successful."},
-                status=status.HTTP_200_OK,
+                status=200,
             )
-        except TokenError:
+        except Exception:
             return Response(
                 {"status": "error", "message": "Invalid or expired refresh token."},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=400,
             )
 
 
