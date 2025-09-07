@@ -5,7 +5,7 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 # -------------------------------------------------------------------
-# Load environment variables from .env
+# Load environment variables
 # -------------------------------------------------------------------
 load_dotenv()
 
@@ -18,11 +18,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security
 # -------------------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
-
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-
 
 # -------------------------------------------------------------------
 # Installed apps
@@ -46,7 +44,6 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
 ]
-
 
 # -------------------------------------------------------------------
 # Middleware
@@ -85,21 +82,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "drfcommerce.wsgi.application"
 
-CORS_ALLOW_ALL_ORIGINS = True
-
-
-
-
+# -------------------------------------------------------------------
+# Database
+# -------------------------------------------------------------------
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
-
-
-
-
 
 # -------------------------------------------------------------------
 # Password validation
@@ -150,7 +141,7 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        'rest_framework.permissions.AllowAny',
+        "rest_framework.permissions.AllowAny",
     ],
 }
 
@@ -178,24 +169,27 @@ SIMPLE_JWT = {
 }
 
 # -------------------------------------------------------------------
-# CORS
+# CORS Settings
 # -------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = os.getenv(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000"
+    "http://localhost:3000,http://127.0.0.1:3000,https://mern-ecommerce-woad-three.vercel.app"
 ).split(",")
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://mern-ecommerce-woad-three.vercel.app",
+    "https://your-backend.onrender.com",
+]
 
 # -------------------------------------------------------------------
 # Email (for OTP / Forgot Password)
 # -------------------------------------------------------------------
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
-)  # console default for dev
+)
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
-
-
