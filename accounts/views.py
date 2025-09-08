@@ -168,64 +168,8 @@ class LogoutView(APIView):
             )
 
 
-# ------------------------
-# JWT Token Refresh (Custom)
-# ------------------------
-class CustomTokenRefreshView(TokenRefreshView):
-    """
-    Override DRF SimpleJWT TokenRefreshView to return 402
-    for expired or invalid refresh tokens.
-    """
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-
-        try:
-            serializer.is_valid(raise_exception=True)
-        except TokenError:
-            return Response(
-                {"status": "error", "message": "Refresh token expired or invalid."},
-                status=402,
-            )
-        except Exception as e:
-            return Response(
-                {"status": "error", "message": str(e)},
-                status=400,
-            )
-
-        return Response(
-            {"status": "success", "access": serializer.validated_data.get("access")},
-            status=200,
-        )
 
 
-
-
-
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = TokenObtainPairSerializer
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-
-        try:
-            serializer.is_valid(raise_exception=True)
-        except TokenError as e:
-            return Response(
-                {"status": "error", "message": "Invalid credentials or token issue."},
-                status=402,
-            )
-        except Exception as e:
-            return Response(
-                {"status": "error", "message": str(e)},
-                status=400,
-            )
-
-        return Response(
-            {"status": "success", 
-             "access": serializer.validated_data.get("access"),
-             "refresh": serializer.validated_data.get("refresh")},
-            status=200,
-        )
 
 
 
