@@ -1,11 +1,20 @@
 import random
 from django.core.mail import send_mail
+import logging
 from django.conf import settings
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated, PermissionDenied, ValidationError
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken, TokenBackendError
+
+
+
+
+logger = logging.getLogger(__name__)
+
+
+
 
 # -------------------------------------------------------------------
 # OTP / Email Utilities
@@ -37,37 +46,36 @@ def send_otp_email(user_email, otp):
 # -------------------------------------------------------------------
 def custom_exception_handler(exc, context):
     """
-    Custom exception handler for DRF.
-    Handles JWT/auth errors and validation errors with clear messages.
+    Custom exception handler:
+    - Uses DRF's default exception handler for standard errors.
+    - Logs unexpected errors.
+    - Shows detailed errors in DEBUG mode, generic error in production.
     """
+    # Call DRF default handler first
     response = exception_handler(exc, context)
 
-    # JWT / Authentication errors → 401
-    if isinstance(exc, (AuthenticationFailed, NotAuthenticated, TokenError, InvalidToken, TokenBackendError)):
-        return Response(
-            {"status": "error", "message": str(exc)},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
-
-    # Permission denied → 403
-    if isinstance(exc, PermissionDenied):
-        return Response(
-            {"status": "error", "message": str(exc)},
-            status=status.HTTP_403_FORBIDDEN
-        )
-
-    # Validation errors → 400 with details
-    if isinstance(exc, ValidationError):
-        return Response(
-            {"status": "error", "errors": exc.detail},  # return field-specific errors
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    # Standardize other DRF responses
     if response is not None:
-        response.data = {
-            "status": "error",
-            "message": response.data.get("detail", str(exc))
-        }
+        return response
 
-    return response
+    # Log unhandled exceptions
+    logger.error("Unhandled exception: %s", str(exc), exc_info=True)
+
+    # If DEBUG=True, show real error for easier debugging
+    if settings.DEBUG:
+        return Response(
+            {
+                "status": "error",
+                "message": str(exc),   # show real error in dev
+                "type": exc.__class__.__name__,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # In production, return safe generic error
+    return Response(
+        {
+            "status": "error",
+            "message": "Something went wrong. Please try again later.",
+        },
+        status=status.HTTP_400_BAD_REQUEST,
+    )
