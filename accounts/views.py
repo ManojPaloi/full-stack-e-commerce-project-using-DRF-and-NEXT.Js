@@ -1,11 +1,8 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from rest_framework_simplejwt.views import TokenRefreshView
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
@@ -105,7 +102,6 @@ class RegisterView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-
 # ------------------------
 # Login View
 # ------------------------
@@ -168,18 +164,6 @@ class LogoutView(APIView):
             )
 
 
-
-
-
-
-
-
-
-
-
-# ------------------------
-# Profile & User Views
-# ------------------------
 class ProfileView(generics.RetrieveUpdateAPIView):
     """Retrieve or update authenticated user profile."""
     serializer_class = ProfileUpdateSerializer
