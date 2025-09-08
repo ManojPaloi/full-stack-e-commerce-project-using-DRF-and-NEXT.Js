@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -102,6 +103,8 @@ class RegisterView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
+
+
 # ------------------------
 # Login View
 # ------------------------
@@ -112,7 +115,19 @@ class LoginView(APIView):
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:
+            # Check if the error is due to invalid credentials
+            error_msg = e.detail.get("non_field_errors")
+            if error_msg and "Invalid" in str(error_msg[0]):
+                return Response(
+                    {"status": "error", "message": str(error_msg[0])},
+                    status=402,  # wrong username/password
+                )
+            # Otherwise, keep it as bad request
+            return Response(e.detail, status=400)
+
         user = serializer.validated_data["user"]
 
         if not user.is_active:
@@ -157,9 +172,14 @@ class LogoutView(APIView):
                 {"status": "success", "message": "Logout successful."},
                 status=200,
             )
+        except TokenError as e:  # explicitly handle expired/invalid
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=401,  # <-- unauthorized instead of 400
+            )
         except Exception:
             return Response(
-                {"status": "error", "message": "Invalid or expired refresh token."},
+                {"status": "error", "message": "Something went wrong."},
                 status=400,
             )
 
