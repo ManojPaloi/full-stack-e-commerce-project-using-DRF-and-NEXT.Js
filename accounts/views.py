@@ -102,6 +102,7 @@ class RegisterView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
+
 # ------------------------
 # Login View
 # ------------------------
@@ -150,18 +151,14 @@ class LogoutView(APIView):
                 status=400,
             )
 
-        try:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response(
-                {"status": "success", "message": "Logout successful."},
-                status=200,
-            )
-        except Exception:
-            return Response(
-                {"status": "error", "message": "Invalid or expired refresh token."},
-                status=400,
-            )
+        # No try/except needed; custom_exception_handler will handle token errors
+        token = RefreshToken(refresh_token)
+        token.blacklist()  # Blacklist the refresh token
+
+        return Response(
+            {"status": "success", "message": "Logout successful."},
+            status=200,
+        )
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):

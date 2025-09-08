@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     # Local apps
     "accounts",
     "main",
+     "category", 
 
     # Third-party
     "rest_framework",
@@ -169,10 +170,21 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
+
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ],
+
+    # Add custom exception handler
+    "EXCEPTION_HANDLER": "accounts.utils.custom_exception_handler",
 }
+
+
 
 # -------------------------------------------------------------------
 # JWT Settings
