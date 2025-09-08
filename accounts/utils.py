@@ -4,7 +4,7 @@ from django.conf import settings
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated, PermissionDenied
+from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated, PermissionDenied, ValidationError
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken, TokenBackendError
 
 # -------------------------------------------------------------------
@@ -38,9 +38,8 @@ def send_otp_email(user_email, otp):
 def custom_exception_handler(exc, context):
     """
     Custom exception handler for DRF.
-    Standardizes JWT/auth errors and permissions into consistent JSON responses.
+    Handles JWT/auth errors and validation errors with clear messages.
     """
-    # Call REST framework's default exception handler first
     response = exception_handler(exc, context)
 
     # JWT / Authentication errors → 401
@@ -57,11 +56,18 @@ def custom_exception_handler(exc, context):
             status=status.HTTP_403_FORBIDDEN
         )
 
-    # If DRF default handler returned a response, standardize format
+    # Validation errors → 400 with details
+    if isinstance(exc, ValidationError):
+        return Response(
+            {"status": "error", "errors": exc.detail},  # return field-specific errors
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Standardize other DRF responses
     if response is not None:
         response.data = {
             "status": "error",
-            "message": response.data.get("detail", "Something went wrong.")
+            "message": response.data.get("detail", str(exc))
         }
 
     return response
