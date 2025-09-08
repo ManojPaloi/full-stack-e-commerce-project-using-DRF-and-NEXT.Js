@@ -77,6 +77,7 @@ class LoginSerializer(serializers.Serializer):
     Serializer for user login.
     Accepts either email or username in `login` field.
     """
+
     login = serializers.CharField(required=True)
     password = serializers.CharField(write_only=True)
 
@@ -85,37 +86,27 @@ class LoginSerializer(serializers.Serializer):
         password = data.get("password")
 
         if not login or not password:
-            raise serializers.ValidationError(
-                {"detail": "Both login (email/username) and password are required."}
-            )
+            raise serializers.ValidationError("Both login (email/username) and password are required.")
 
-        # Try finding the user (by email or username)
-        user_qs = User.objects.filter(
-            email__iexact=login if "@" in login else None,
-            username__iexact=login if "@" not in login else None
-        ).distinct()
+        # Resolve user by email or username
+        try:
+            if "@" in login:
+                user = User.objects.get(email__iexact=login)
+            else:
+                user = User.objects.get(username__iexact=login)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Invalid email/username or password.")
 
-        if not user_qs.exists():
-            raise serializers.ValidationError(
-                {"detail": "Invalid email/username or password."}
-            )
-
-        user = user_qs.first()
-
-        # Check password
         if not user.check_password(password):
-            raise serializers.ValidationError(
-                {"detail": "Invalid email/username or password."}
-            )
+            raise serializers.ValidationError("Invalid email/username or password.")
 
-        # Check if active
         if not user.is_active:
-            raise serializers.ValidationError(
-                {"detail": "Your account is not active. Please verify your email before login."}
-            )
+            raise serializers.ValidationError("Your account is not active. Please verify your email before login.")
 
         data["user"] = user
         return data
+
+
 # -------------------------------------------------------------------
 # Profile Update Serializer
 # -------------------------------------------------------------------
