@@ -1,8 +1,11 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
@@ -102,6 +105,7 @@ class RegisterView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
+
 # ------------------------
 # Login View
 # ------------------------
@@ -164,6 +168,74 @@ class LogoutView(APIView):
             )
 
 
+# ------------------------
+# JWT Token Refresh (Custom)
+# ------------------------
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    Custom TokenRefreshView to return 402 when refresh token expired.
+    """
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            # Return 402 for expired/invalid token
+            return Response(
+                {"status": "error", "message": "Refresh token expired or invalid."},
+                status=402,
+            )
+        except Exception as e:
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=400,
+            )
+
+        return Response(
+            {"status": "success", "access": serializer.validated_data.get("access")},
+            status=200,
+        )
+
+
+
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = TokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            return Response(
+                {"status": "error", "message": "Invalid credentials or token issue."},
+                status=402,
+            )
+        except Exception as e:
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=400,
+            )
+
+        return Response(
+            {"status": "success", 
+             "access": serializer.validated_data.get("access"),
+             "refresh": serializer.validated_data.get("refresh")},
+            status=200,
+        )
+
+
+
+
+
+
+
+# ------------------------
+# Profile & User Views
+# ------------------------
 class ProfileView(generics.RetrieveUpdateAPIView):
     """Retrieve or update authenticated user profile."""
     serializer_class = ProfileUpdateSerializer
