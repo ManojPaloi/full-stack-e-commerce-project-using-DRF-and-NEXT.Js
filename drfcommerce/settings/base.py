@@ -180,8 +180,6 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
 
-    # Custom exception handler to return 402 for expired/invalid JWT
-    "EXCEPTION_HANDLER": "accounts.utils.custom_exception_handler",
 }
 
 
