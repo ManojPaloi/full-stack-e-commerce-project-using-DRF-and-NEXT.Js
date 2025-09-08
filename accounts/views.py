@@ -2,7 +2,6 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
-from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -103,57 +102,39 @@ class RegisterView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-
+# ------------------------
+# Login View
+# ------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
-        try:
-            serializer = LoginSerializer(data=request.data, context={"request": request})
-            serializer.is_valid(raise_exception=True)
+        serializer = LoginSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
 
-            user = serializer.validated_data["user"]
-
-            if not user.is_active:
-                return Response(
-                    {"status": "error", "message": "Please verify your email before login."},
-                    status=403,
-                )
-
-            refresh = RefreshToken.for_user(user)
+        if not user.is_active:
             return Response(
-                {
-                    "status": "success",
-                    "message": "Login successful 🎉",
-                    "access": str(refresh.access_token),
-                    "refresh": str(refresh),
-                    "user": UserSerializer(user).data,
-                },
-                status=200,
+                {"status": "error", "message": "Please verify your email before login."},
+                status=403,
             )
 
-        except ValidationError as e:
-            # Handle wrong username/password separately
-            errors = getattr(e, "detail", {})
-            non_field = errors.get("non_field_errors")
-            if non_field and "Invalid" in str(non_field[0]):
-                return Response(
-                    {"status": "error", "message": str(non_field[0])},
-                    status=402,
-                )
-            return Response({"status": "error", "errors": errors}, status=400)
+        refresh = RefreshToken.for_user(user)
 
-        except Exception as e:
-            # Catch *all* unexpected errors -> no raw 500
-            return Response(
-                {"status": "error", "message": f"Server error: {str(e)}"},
-                status=500,
-            )
-            
-            
-            
+        return Response(
+            {
+                "status": "success",
+                "message": "Login successful 🎉",
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": UserSerializer(user).data,
+            },
+            status=200,
+        )
+
+
 # ------------------------
 # Logout View
 # ------------------------
@@ -176,14 +157,9 @@ class LogoutView(APIView):
                 {"status": "success", "message": "Logout successful."},
                 status=200,
             )
-        except TokenError as e:  # explicitly handle expired/invalid
-            return Response(
-                {"status": "error", "message": str(e)},
-                status=401,  # <-- unauthorized instead of 400
-            )
         except Exception:
             return Response(
-                {"status": "error", "message": "Something went wrong."},
+                {"status": "error", "message": "Invalid or expired refresh token."},
                 status=400,
             )
 
