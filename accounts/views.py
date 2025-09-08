@@ -173,15 +173,15 @@ class LogoutView(APIView):
 # ------------------------
 class CustomTokenRefreshView(TokenRefreshView):
     """
-    Custom TokenRefreshView to return 402 when refresh token expired.
+    Override DRF SimpleJWT TokenRefreshView to return 402
+    for expired or invalid refresh tokens.
     """
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
 
         try:
             serializer.is_valid(raise_exception=True)
-        except TokenError as e:
-            # Return 402 for expired/invalid token
+        except TokenError:
             return Response(
                 {"status": "error", "message": "Refresh token expired or invalid."},
                 status=402,
