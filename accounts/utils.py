@@ -45,21 +45,21 @@ def send_otp_email(user_email, otp, purpose="verification"):
         # Log the error; in production you might use logging instead of print
         print("Email sending failed:", e)
 
-# ------------------------
-# Custom Exception Handler
-# ------------------------
-def custom_exception_handler(exc, context):
-    """
-    Override DRF exception handler to handle JWT token errors globally.
+# # ------------------------
+# # Custom Exception Handler
+# # ------------------------
+# def custom_exception_handler(exc, context):
+#     """
+#     Override DRF exception handler to handle JWT token errors globally.
 
-    Returns status 402 for expired/invalid JWT tokens.
-    """
-    response = exception_handler(exc, context)
+#     Returns status 402 for expired/invalid JWT tokens.
+#     """
+#     response = exception_handler(exc, context)
 
-    if isinstance(exc, (TokenError, InvalidToken)):
-        return Response(
-            {"status": "error", "message": "Access token expired or invalid."},
-            status=402,
-        )
+#     if isinstance(exc, (TokenError, InvalidToken)):
+#         return Response(
+#             {"status": "error", "message": "Access token expired or invalid."},
+#             status=402,
+#         )
 
-    return response
+#     return response
