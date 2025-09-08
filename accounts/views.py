@@ -104,7 +104,6 @@ class RegisterView(generics.CreateAPIView):
         )
 
 
-
 # ------------------------
 # Login View
 # ------------------------
@@ -118,15 +117,25 @@ class LoginView(APIView):
         try:
             serializer.is_valid(raise_exception=True)
         except ValidationError as e:
-            # Check if the error is due to invalid credentials
-            error_msg = e.detail.get("non_field_errors")
-            if error_msg and "Invalid" in str(error_msg[0]):
-                return Response(
-                    {"status": "error", "message": str(error_msg[0])},
-                    status=402,  # wrong username/password
-                )
-            # Otherwise, keep it as bad request
-            return Response(e.detail, status=400)
+            # Convert error detail safely to dict
+            error_detail = getattr(e, "detail", {})
+            error_msg = None
+
+            # Check if serializer raised "Invalid email/username or password."
+            if isinstance(error_detail, dict):
+                non_field = error_detail.get("non_field_errors")
+                if non_field and "Invalid" in str(non_field[0]):
+                    error_msg = str(non_field[0])
+                    return Response(
+                        {"status": "error", "message": error_msg},
+                        status=402,   # wrong username/password
+                    )
+
+            # Default -> Bad Request (400)
+            return Response(
+                {"status": "error", "errors": error_detail},
+                status=400,
+            )
 
         user = serializer.validated_data["user"]
 
@@ -148,7 +157,6 @@ class LoginView(APIView):
             },
             status=200,
         )
-
 
 # ------------------------
 # Logout View
