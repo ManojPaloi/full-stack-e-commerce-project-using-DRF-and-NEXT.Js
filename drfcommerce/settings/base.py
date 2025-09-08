@@ -179,9 +179,6 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
-
-    # Add custom exception handler
-    "EXCEPTION_HANDLER": "accounts.utils.custom_exception_handler",
 }
 
 

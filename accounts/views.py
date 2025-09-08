@@ -104,60 +104,56 @@ class RegisterView(generics.CreateAPIView):
         )
 
 
-# ------------------------
-# Login View
-# ------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data, context={"request": request})
         try:
+            serializer = LoginSerializer(data=request.data, context={"request": request})
             serializer.is_valid(raise_exception=True)
+
+            user = serializer.validated_data["user"]
+
+            if not user.is_active:
+                return Response(
+                    {"status": "error", "message": "Please verify your email before login."},
+                    status=403,
+                )
+
+            refresh = RefreshToken.for_user(user)
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Login successful 🎉",
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                    "user": UserSerializer(user).data,
+                },
+                status=200,
+            )
+
         except ValidationError as e:
-            # Convert error detail safely to dict
-            error_detail = getattr(e, "detail", {})
-            error_msg = None
+            # Handle wrong username/password separately
+            errors = getattr(e, "detail", {})
+            non_field = errors.get("non_field_errors")
+            if non_field and "Invalid" in str(non_field[0]):
+                return Response(
+                    {"status": "error", "message": str(non_field[0])},
+                    status=402,
+                )
+            return Response({"status": "error", "errors": errors}, status=400)
 
-            # Check if serializer raised "Invalid email/username or password."
-            if isinstance(error_detail, dict):
-                non_field = error_detail.get("non_field_errors")
-                if non_field and "Invalid" in str(non_field[0]):
-                    error_msg = str(non_field[0])
-                    return Response(
-                        {"status": "error", "message": error_msg},
-                        status=402,   # wrong username/password
-                    )
-
-            # Default -> Bad Request (400)
+        except Exception as e:
+            # Catch *all* unexpected errors -> no raw 500
             return Response(
-                {"status": "error", "errors": error_detail},
-                status=400,
+                {"status": "error", "message": f"Server error: {str(e)}"},
+                status=500,
             )
-
-        user = serializer.validated_data["user"]
-
-        if not user.is_active:
-            return Response(
-                {"status": "error", "message": "Please verify your email before login."},
-                status=403,
-            )
-
-        refresh = RefreshToken.for_user(user)
-
-        return Response(
-            {
-                "status": "success",
-                "message": "Login successful 🎉",
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": UserSerializer(user).data,
-            },
-            status=200,
-        )
-
+            
+            
+            
 # ------------------------
 # Logout View
 # ------------------------
