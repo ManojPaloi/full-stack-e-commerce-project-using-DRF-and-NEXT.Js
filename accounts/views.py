@@ -108,7 +108,7 @@ class RegisterView(generics.CreateAPIView):
 # ------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={"request": request})
@@ -140,7 +140,7 @@ class LoginView(APIView):
 # ------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
