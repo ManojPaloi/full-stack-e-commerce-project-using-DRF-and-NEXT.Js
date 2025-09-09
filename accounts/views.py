@@ -67,19 +67,19 @@ def send_otp_email(email, otp_code, purpose="verification"):
 # Authentication & User Management
 # ------------------------
 class RegisterView(generics.CreateAPIView):
-    """Handle user registration with OTP email verification."""
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
-        """
-        Register a new user:
-        - Save user as inactive.
-        - Generate OTP and send to email.
-        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save(is_active=False)
+
+        # Save profile picture if provided
+        profile_pic = request.FILES.get("profile_pic")
+        if profile_pic:
+            user.profile_pic = profile_pic
+            user.save()
 
         otp = EmailOTP.objects.create(
             user=user,
@@ -94,13 +94,14 @@ class RegisterView(generics.CreateAPIView):
         return Response(
             {
                 "status": "success",
-                "title": "Registration Successful 🎉",
+                "title": "Registration Successful",
                 "message": "An OTP has been sent to your email. Please verify your account.",
-                "next_step": "Check your inbox or spam folder for the OTP.",
+                "next_step": "Check your inbox for the OTP.",
                 "email": user.email,
             },
             status=status.HTTP_201_CREATED,
         )
+
 
 # ------------------------
 # Login View
@@ -164,7 +165,7 @@ class LogoutView(APIView):
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
-    """Retrieve or update authenticated user profile."""
+    """Retrieve or update authenticated user profile, including profile picture."""
     serializer_class = ProfileUpdateSerializer
     permission_classes = [IsAuthenticated]
 
@@ -175,6 +176,20 @@ class ProfileView(generics.RetrieveUpdateAPIView):
         serializer = UserSerializer(request.user)
         return Response(
             {"status": "success", "message": "Profile retrieved.", "data": serializer.data},
+            status=status.HTTP_200_OK,
+        )
+
+    def patch(self, request, *args, **kwargs):
+        """Allow partial updates (including profile_pic)."""
+        serializer = self.get_serializer(
+            self.get_object(),
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"status": "success", "message": "Profile updated successfully.", "data": serializer.data},
             status=status.HTTP_200_OK,
         )
 

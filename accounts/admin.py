@@ -4,28 +4,27 @@ from django.utils.html import format_html
 from django.utils import timezone
 from .models import CustomUser, EmailOTP
 
-
 # -------------------------------------------------------------------
-# Custom User Admin (Official Design)
+# Custom User Admin (Official Design with Profile Pic)
 # -------------------------------------------------------------------
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     list_display = (
-        "id", "email", "username", "first_name", "last_name",
+        "id", "profile_image_tag", "email", "username", "first_name", "last_name",
         "mobile_no", "status_badge", "staff_badge", "superuser_badge",
         "created_at", "updated_at",
     )
     list_filter = ("is_active", "is_staff", "is_superuser", "created_at")
     search_fields = ("email", "username", "first_name", "last_name", "mobile_no")
     ordering = ("-created_at",)
-    readonly_fields = ("username", "created_at", "updated_at")
+    readonly_fields = ("username", "created_at", "updated_at", "profile_image_tag")
 
     fieldsets = (
         ("Account Info", {
             "fields": ("email", "password", "username"),
         }),
         ("Personal Info", {
-            "fields": ("first_name", "last_name", "mobile_no", "address", "pin_code"),
+            "fields": ("first_name", "last_name", "mobile_no", "address", "pin_code", "profile_pic"),
         }),
         ("Permissions", {
             "fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions"),
@@ -38,9 +37,21 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = (
         (None, {
             "classes": ("wide",),
-            "fields": ("email", "password1", "password2", "first_name", "last_name", "mobile_no"),
+            "fields": ("email", "password1", "password2", "first_name", "last_name", "mobile_no", "profile_pic"),
         }),
     )
+
+    # ------------------------------
+    # Profile picture thumbnail
+    # ------------------------------
+    def profile_image_tag(self, obj):
+        if obj.profile_pic:
+            return format_html(
+                '<img src="{}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" />',
+                obj.profile_pic.url
+            )
+        return "-"
+    profile_image_tag.short_description = "Profile Picture"
 
     # ------------------------------
     # Official badges using Bootstrap classes

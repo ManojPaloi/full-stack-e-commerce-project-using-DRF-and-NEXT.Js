@@ -14,9 +14,9 @@ User = get_user_model()
 # -------------------------------------------------------------------
 class UserSerializer(serializers.ModelSerializer):
     """
-    Serializer for full user details.
-    Ensures sensitive fields (password) are write-only.
+    Serializer for full user details including profile picture URL.
     """
+    profile_pic = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
@@ -29,24 +29,27 @@ class UserSerializer(serializers.ModelSerializer):
             "user_permissions": {"read_only": True},
         }
 
+    def get_profile_pic(self, obj):
+        request = self.context.get("request")
+        if obj.profile_pic and hasattr(obj.profile_pic, 'url'):
+            return request.build_absolute_uri(obj.profile_pic.url) if request else obj.profile_pic.url
+        return None
+
+
 
 # -------------------------------------------------------------------
 # Register Serializer
 # -------------------------------------------------------------------
 class RegisterSerializer(serializers.ModelSerializer):
-    """
-    Serializer for user registration.
-    Includes `password2` for confirmation before creating a new user.
-    """
-
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True, label="Confirm Password")
+    profile_pic = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = CustomUser
         fields = [
             "first_name", "last_name", "email", "mobile_no",
-            "address", "pin_code", "password", "password2"
+            "address", "pin_code", "password", "password2", "profile_pic"
         ]
 
     def validate(self, attrs):
@@ -55,7 +58,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop("password2", None)  # remove confirmation field
+        validated_data.pop("password2", None)
+        profile_pic = validated_data.pop("profile_pic", None)
         user = CustomUser.objects.create_user(
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
@@ -64,8 +68,11 @@ class RegisterSerializer(serializers.ModelSerializer):
             address=validated_data.get("address", ""),
             pin_code=validated_data.get("pin_code", ""),
             password=validated_data["password"],
-            is_active=False,  # user must verify OTP
+            is_active=False,
         )
+        if profile_pic:
+            user.profile_pic = profile_pic
+            user.save()
         return user
 
 
@@ -112,11 +119,10 @@ class LoginSerializer(serializers.Serializer):
 # -------------------------------------------------------------------
 class ProfileUpdateSerializer(serializers.ModelSerializer):
     """
-    Serializer for updating user profile.
-    Username cannot be modified once created.
+    Serializer for updating user profile, now including profile picture.
     """
-
     username = serializers.CharField(read_only=True)
+    profile_pic = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = CustomUser
@@ -127,6 +133,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             "mobile_no",
             "address",
             "pin_code",
+            "profile_pic",
         ]
 
     def update(self, instance, validated_data):
@@ -134,6 +141,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
 
 
 # -------------------------------------------------------------------

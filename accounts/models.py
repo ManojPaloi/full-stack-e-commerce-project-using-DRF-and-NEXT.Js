@@ -165,6 +165,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     Custom user model where email is the primary identifier for authentication.
     Includes additional fields like mobile_no, address, and pin_code.
     """
+    profile_pic = models.ImageField(
+        upload_to="profile_pics/",
+        blank=True,
+        null=True,
+        default=None,
+        help_text="Optional profile picture for the user."
+    )
     username   = models.CharField(max_length=50, unique=True, editable=False)
     email      = models.EmailField(unique=True, null=False, blank=False)
     mobile_no  = models.CharField(max_length=10, unique=True, null=True, blank=True)

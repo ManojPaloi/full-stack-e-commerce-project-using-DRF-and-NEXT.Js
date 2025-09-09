@@ -5,6 +5,9 @@ from rest_framework.decorators import api_view
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
 from rest_framework.routers import DefaultRouter
+from django.conf import settings
+from django.conf.urls.static import static
+
 
 # Optional: if you have viewsets
 router = DefaultRouter()
@@ -41,5 +44,8 @@ urlpatterns = [
     # path("api/", include(router.urls)),  # Uncomment and adjust if viewsets are added
 ]
 
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
