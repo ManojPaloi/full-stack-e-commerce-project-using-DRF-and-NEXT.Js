@@ -22,7 +22,9 @@ def api_root(request, format=None):
     })
 
 urlpatterns = [
+    path('i18n/', include('django.conf.urls.i18n')),
     # Django admin dashboard
+    # path("grappelli/", include("grappelli.urls")),  
     path("admin/", admin.site.urls),
 
     # API root (global entrypoint)
@@ -38,3 +40,6 @@ urlpatterns = [
     # Viewsets (only include if router has registered viewsets)
     # path("api/", include(router.urls)),  # Uncomment and adjust if viewsets are added
 ]
+
+
+

@@ -6,12 +6,10 @@ from .models import CustomUser, EmailOTP
 
 
 # -------------------------------------------------------------------
-# Custom User Admin
+# Custom User Admin (Official Design)
 # -------------------------------------------------------------------
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    """Enhanced Admin panel configuration for CustomUser with better UX"""
-
     list_display = (
         "id", "email", "username", "first_name", "last_name",
         "mobile_no", "status_badge", "staff_badge", "superuser_badge",
@@ -20,23 +18,19 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ("is_active", "is_staff", "is_superuser", "created_at")
     search_fields = ("email", "username", "first_name", "last_name", "mobile_no")
     ordering = ("-created_at",)
-
     readonly_fields = ("username", "created_at", "updated_at")
 
     fieldsets = (
-        ("🔐 Account Info", {
+        ("Account Info", {
             "fields": ("email", "password", "username"),
-            "description": "Basic login information (username is auto-generated)."
         }),
-        ("👤 Personal Info", {
+        ("Personal Info", {
             "fields": ("first_name", "last_name", "mobile_no", "address", "pin_code"),
-            "description": "Optional details about the user."
         }),
-        ("⚙️ Permissions", {
+        ("Permissions", {
             "fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions"),
-            "description": "Control user access and roles."
         }),
-        ("⏱ Important Dates", {
+        ("Important Dates", {
             "fields": ("last_login", "created_at", "updated_at"),
         }),
     )
@@ -48,37 +42,40 @@ class CustomUserAdmin(UserAdmin):
         }),
     )
 
-    # Custom colored badges
+    # ------------------------------
+    # Official badges using Bootstrap classes
+    # ------------------------------
     def status_badge(self, obj):
-        if obj.is_active:
-            return format_html('<span style="color: green; font-weight: bold;">✔ Active</span>')
-        return format_html('<span style="color: red; font-weight: bold;">✖ Inactive</span>')
-    status_badge.short_description = "Active Status"
+        badge_class = "success" if obj.is_active else "danger"
+        text = "Active" if obj.is_active else "Inactive"
+        return format_html(f'<span class="badge badge-{badge_class}">{text}</span>')
+    status_badge.short_description = "Status"
 
     def staff_badge(self, obj):
-        return format_html(
-            '<span style="color: {};">{}</span>',
-            "blue" if obj.is_staff else "gray",
-            "✔ Staff" if obj.is_staff else "—"
-        )
+        badge_class = "primary" if obj.is_staff else "secondary"
+        text = "Staff" if obj.is_staff else "—"
+        return format_html(f'<span class="badge badge-{badge_class}">{text}</span>')
     staff_badge.short_description = "Staff"
 
     def superuser_badge(self, obj):
-        return format_html(
-            '<span style="color: {};">{}</span>',
-            "purple" if obj.is_superuser else "gray",
-            "✔ Superuser" if obj.is_superuser else "—"
-        )
+        badge_class = "warning" if obj.is_superuser else "secondary"
+        text = "Superuser" if obj.is_superuser else "—"
+        return format_html(f'<span class="badge badge-{badge_class}">{text}</span>')
     superuser_badge.short_description = "Superuser"
+
+    # ------------------------------
+    # Optimize queryset
+    # ------------------------------
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.prefetch_related('groups', 'user_permissions')
 
 
 # -------------------------------------------------------------------
-# Email OTP Admin
+# Email OTP Admin (Official Design)
 # -------------------------------------------------------------------
 @admin.register(EmailOTP)
 class EmailOTPAdmin(admin.ModelAdmin):
-    """Enhanced Admin panel configuration for OTP management"""
-
     list_display = (
         "id", "email", "purpose", "code",
         "created_at", "expires_at", "status_badge",
@@ -86,19 +83,27 @@ class EmailOTPAdmin(admin.ModelAdmin):
     list_filter = ("purpose", "is_used", "created_at", "expires_at")
     search_fields = ("email", "code")
     ordering = ("-created_at",)
-
     readonly_fields = ("created_at", "expires_at")
 
-    # Custom status with colors
+    # ------------------------------
+    # Official badges for OTP status
+    # ------------------------------
     def status_badge(self, obj):
         if obj.is_used:
-            return format_html('<span style="color: gray; font-weight: bold;">✔ Used</span>')
+            badge_class = "secondary"
+            text = "Used"
         elif obj.is_expired():
-            return format_html('<span style="color: red; font-weight: bold;">✖ Expired</span>')
-        return format_html('<span style="color: green; font-weight: bold;">✔ Valid</span>')
+            badge_class = "danger"
+            text = "Expired"
+        else:
+            badge_class = "success"
+            text = "Valid"
+        return format_html(f'<span class="badge badge-{badge_class}">{text}</span>')
     status_badge.short_description = "Status"
 
-    # Admin Actions
+    # ------------------------------
+    # Admin bulk actions
+    # ------------------------------
     actions = ["mark_selected_as_used", "delete_expired_otps"]
 
     def mark_selected_as_used(self, request, queryset):

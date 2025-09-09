@@ -21,6 +21,8 @@ ALLOWED_HOSTS = os.getenv(
 # Installed apps
 # -------------------------------------------------------------------
 INSTALLED_APPS = [
+    # "grappelli",
+    "jazzmin", 
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -37,6 +39,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+ 
 ]
 
 # -------------------------------------------------------------------
@@ -238,3 +241,85 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+
+
+
+
+# -------------------------------------------------------------------
+# Jazzmin Admin Theme (Enhanced)
+# -------------------------------------------------------------------
+JAZZMIN_SETTINGS = {
+    "site_title": "MyStore Admin",
+    "site_header": "MyStore Dashboard",
+    "site_brand": "MyStore",
+    "welcome_sign": "Welcome back 👋",
+    "copyright": "MyStore © 2025",
+
+    # Logos
+    "site_logo": "images/logo.png",
+    "login_logo": "images/logo.png",
+    "login_logo_dark": "images/logo.png",  # fallback for dark mode
+
+    # Search models
+    "search_model": ["accounts.CustomUser", "category.Category", "main.Product"],
+
+    # Top menu
+    "topmenu_links": [
+        {"name": "Dashboard", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"app": "accounts"},
+        {"app": "category"},
+        {"app": "main"},
+        {"name": "Website", "url": "https://mystore.com", "new_window": True},
+    ],
+
+    # Sidebar
+    "show_sidebar": True,
+    "navigation_expanded": True,
+
+    # Hide clutter
+    "hide_models": [
+        "rest_framework_simplejwt.token_blacklist.BlacklistedToken",
+        "rest_framework_simplejwt.token_blacklist.OutstandingToken",
+        "auth.Group",
+        "auth.Permission",
+    ],
+
+    # Custom icons
+    "icons": {
+        "accounts.CustomUser": "fas fa-user-circle",
+        "accounts.EmailOTP": "fas fa-envelope",
+        "category.Category": "fas fa-tags",
+        "main.Product": "fas fa-box-open",
+        "main.Order": "fas fa-shopping-cart",
+    },
+
+    # Ordering
+    "order_with_respect_to": ["accounts", "category", "main"],
+
+    # Custom assets
+    "custom_css": "css/custom_admin.css",
+    "custom_js": "js/custom_admin.js",
+}
+
+# -------------------------------------------------------------------
+# Jazzmin UI Tweaks (Responsive + Modern Look)
+# -------------------------------------------------------------------
+JAZZMIN_UI_TWEAKS = {
+    "theme": "darkly",                     # Base theme
+    "dark_mode_theme": "cyborg",           # Extra dark mode option
+    "navbar": "navbar-dark bg-gradient-primary",  
+    "sidebar": "sidebar-dark-primary elevation-4",
+    "brand_colour": "navbar-primary",
+    "accent": "accent-info",
+    "button_classes": {
+        "primary": "btn btn-primary btn-lg rounded-pill shadow",
+        "secondary": "btn btn-outline-secondary rounded-pill",
+    },
+    "sidebar_nav_small_text": True,
+    "sidebar_disable_expand": False,
+    "footer_fixed": True,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "actions_sticky_top": True,
+    "show_ui_builder": False,
+}
