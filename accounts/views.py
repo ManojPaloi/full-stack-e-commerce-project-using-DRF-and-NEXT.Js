@@ -144,20 +144,27 @@ class LogoutView(APIView):
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
+
         if not refresh_token:
             return Response(
                 {"status": "error", "message": "Refresh token required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         try:
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response({"status": "success", "message": "Logged out successfully."})
-        except Exception as e:
             return Response(
-                {"status": "error", "message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"status": "success", "message": "Logged out successfully."},
+                status=status.HTTP_200_OK,
             )
+        except Exception:
+            # If token already blacklisted or invalid, still return success
+            return Response(
+                {"status": "success", "message": "Already logged out."},
+                status=status.HTTP_200_OK,
+            )
+
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = ProfileUpdateSerializer
