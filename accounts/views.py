@@ -140,27 +140,23 @@ class LoginView(APIView):
 # ------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
         if not refresh_token:
             return Response(
                 {"status": "error", "message": "Refresh token required."},
-                status=400,
+                status=status.HTTP_400_BAD_REQUEST,
             )
-
         try:
             token = RefreshToken(refresh_token)
             token.blacklist()
+            return Response({"status": "success", "message": "Logged out successfully."})
+        except Exception as e:
             return Response(
-                {"status": "success", "message": "Logout successful."},
-                status=200,
-            )
-        except Exception:
-            return Response(
-                {"status": "error", "message": "Invalid or expired refresh token."},
-                status=400,
+                {"status": "error", "message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
 class ProfileView(generics.RetrieveUpdateAPIView):
