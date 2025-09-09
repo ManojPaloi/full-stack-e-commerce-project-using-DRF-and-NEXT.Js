@@ -140,7 +140,7 @@ class LoginView(APIView):
 # ------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LogoutView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
