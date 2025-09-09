@@ -163,35 +163,37 @@ class LogoutView(APIView):
                 status=400,
             )
 
-
 class ProfileView(generics.RetrieveUpdateAPIView):
-    """Retrieve or update authenticated user profile, including profile picture."""
     serializer_class = ProfileUpdateSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
         return self.request.user
 
-    def get(self, request, *args, **kwargs):
-        serializer = UserSerializer(request.user)
-        return Response(
-            {"status": "success", "message": "Profile retrieved.", "data": serializer.data},
-            status=status.HTTP_200_OK,
-        )
+    # GET request
+    def retrieve(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_object())
+        return Response({
+            "status": "success",
+            "message": "Profile retrieved.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
 
-    def patch(self, request, *args, **kwargs):
-        """Allow partial updates (including profile_pic)."""
+    # PATCH / PUT request
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
         serializer = self.get_serializer(
             self.get_object(),
             data=request.data,
-            partial=True,
+            partial=partial
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(
-            {"status": "success", "message": "Profile updated successfully.", "data": serializer.data},
-            status=status.HTTP_200_OK,
-        )
+        return Response({
+            "status": "success",
+            "message": "Profile updated successfully.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 class UserListView(generics.ListAPIView):
