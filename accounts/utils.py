@@ -30,14 +30,42 @@ def send_otp_email(user_email, otp):
 
 def custom_exception_handler(exc, context):
     """
-    Custom exception handler for DRF.
-    Returns 402 if JWT access token is expired or invalid.
+    Custom exception handler to standardize error responses.
     """
-    if isinstance(exc, TokenError):
-        return Response(
-            {"status": "error", "message": "Access token expired or invalid."},
-            status=402,
+    # Call DRF's default handler first
+    response = exception_handler(exc, context)
+
+    if response is not None:
+        # Use DRF’s generated error details
+        detail = response.data
+
+        # Wrap into a consistent structure
+        response.data = {
+            "status": "error",
+            "message": _get_error_message(detail),
+            "errors": detail,  # full details (field errors, etc.)
+        }
+    else:
+        # If response is None, it’s a server error (500, etc.)
+        response = Response(
+            {
+                "status": "error",
+                "message": "Internal server error. Please try again later.",
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    response = exception_handler(exc, context)
     return response
+
+
+def _get_error_message(detail):
+    """
+    Extracts a user-friendly message from DRF's error detail.
+    """
+    if isinstance(detail, list):
+        return " ".join([str(item) for item in detail])
+    elif isinstance(detail, dict):
+        # Pick the first field error
+        first_key = next(iter(detail))
+        return str(detail[first_key])
+    return str(detail)
