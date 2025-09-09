@@ -285,3 +285,14 @@ class EmailOTP(models.Model):
 
     def __str__(self):
         return f"{self.email} - {self.purpose} - {self.code}"
+
+
+
+
+
+class BlacklistedAccessToken(models.Model):
+    jti = models.CharField(max_length=255, unique=True)  # JWT ID
+    blacklisted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Blacklisted JTI: {self.jti}"

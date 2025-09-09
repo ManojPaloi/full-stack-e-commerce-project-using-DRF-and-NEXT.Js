@@ -1,6 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from .models import BlacklistedAccessToken
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils import timezone
@@ -108,7 +109,7 @@ class RegisterView(generics.CreateAPIView):
 # ------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={"request": request})
@@ -138,13 +139,11 @@ class LoginView(APIView):
 # ------------------------
 # Logout View
 # ------------------------
-@method_decorator(csrf_exempt, name='dispatch')
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
-
         if not refresh_token:
             return Response(
                 {"status": "error", "message": "Refresh token required."},
@@ -152,14 +151,22 @@ class LogoutView(APIView):
             )
 
         try:
+            # Blacklist refresh token
             token = RefreshToken(refresh_token)
             token.blacklist()
+
+            # Blacklist current access token too
+            access_token = request.auth
+            if access_token:
+                jti = access_token.get("jti")
+                if jti:
+                    BlacklistedAccessToken.objects.get_or_create(jti=jti)
+
             return Response(
                 {"status": "success", "message": "Logged out successfully."},
                 status=status.HTTP_200_OK,
             )
         except Exception:
-            # If token already blacklisted or invalid, still return success
             return Response(
                 {"status": "success", "message": "Already logged out."},
                 status=status.HTTP_200_OK,
