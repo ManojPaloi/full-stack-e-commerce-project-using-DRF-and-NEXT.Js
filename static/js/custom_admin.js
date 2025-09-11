@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
       "me-2"
     );
     toggleBtn.setAttribute("aria-label", "Toggle sidebar");
-    
+
     // Use a professional hamburger icon (three bars)
     toggleBtn.innerHTML = `
       <span style="display:block; width:22px; height:2px; background:#fff; margin:4px 0;"></span>

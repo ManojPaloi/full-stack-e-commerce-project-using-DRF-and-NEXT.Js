@@ -12,16 +12,20 @@ body {
 }
 
 /* Smooth transitions for navbar and sidebar */
-.navbar, .sidebar, .main-sidebar {
+.navbar,
+.sidebar,
+.main-sidebar {
   transition: all 0.3s ease-in-out;
 }
 
 /* Links and buttons */
-a, .btn {
+a,
+.btn {
   transition: all 0.2s ease-in-out;
 }
 
-a:hover, .btn:hover {
+a:hover,
+.btn:hover {
   text-decoration: none;
   opacity: 0.85;
 }
@@ -32,10 +36,11 @@ a:hover, .btn:hover {
 .navbar {
   background-color: #007bff;
   color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.navbar a, .navbar .navbar-brand {
+.navbar a,
+.navbar .navbar-brand {
   color: #ffffff;
 }
 
@@ -88,7 +93,8 @@ a:hover, .btn:hover {
 /* -------------------------------------------------------------------
    Cards / Panels
 ------------------------------------------------------------------- */
-.card, .box {
+.card,
+.box {
   background-color: #ffffff;
   border-radius: 0.5rem;
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
@@ -96,7 +102,8 @@ a:hover, .btn:hover {
   transition: all 0.3s ease-in-out;
 }
 
-.card:hover, .box:hover {
+.card:hover,
+.box:hover {
   box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
 }
 
@@ -116,7 +123,8 @@ a:hover, .btn:hover {
   color: #495057;
 }
 
-.table td, .table th {
+.table td,
+.table th {
   padding: 0.75rem;
   vertical-align: middle;
   border-top: 1px solid #dee2e6;
@@ -137,26 +145,73 @@ a:hover, .btn:hover {
   display: inline-block;
 }
 
-.badge-success { background-color: #28a745; color: #ffffff; }
-.badge-danger { background-color: #dc3545; color: #ffffff; }
-.badge-primary { background-color: #007bff; color: #ffffff; }
-.badge-secondary { background-color: #6c757d; color: #ffffff; }
-.badge-warning { background-color: #ffc107; color: #212529; }
+.badge-success {
+  background-color: #28a745;
+  color: #ffffff;
+}
+
+.badge-danger {
+  background-color: #dc3545;
+  color: #ffffff;
+}
+
+.badge-primary {
+  background-color: #007bff;
+  color: #ffffff;
+}
+
+.badge-secondary {
+  background-color: #6c757d;
+  color: #ffffff;
+}
+
+.badge-warning {
+  background-color: #ffc107;
+  color: #212529;
+}
 
 /* -------------------------------------------------------------------
    Buttons
 ------------------------------------------------------------------- */
-.btn-primary { background-color: #007bff; border-color: #007bff; }
-.btn-primary:hover { background-color: #0069d9; border-color: #0062cc; }
+.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+}
 
-.btn-secondary { background-color: #6c757d; border-color: #6c757d; }
-.btn-secondary:hover { background-color: #5a6268; border-color: #545b62; }
+.btn-primary:hover {
+  background-color: #0069d9;
+  border-color: #0062cc;
+}
 
-.btn-success { background-color: #28a745; border-color: #28a745; }
-.btn-success:hover { background-color: #218838; border-color: #1e7e34; }
+.btn-secondary {
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
 
-.btn-danger { background-color: #dc3545; border-color: #dc3545; }
-.btn-danger:hover { background-color: #c82333; border-color: #bd2130; }
+.btn-secondary:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
+}
+
+.btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
 
 /* -------------------------------------------------------------------
    Responsive Layout
@@ -168,9 +223,11 @@ a:hover, .btn:hover {
     left: -260px;
     width: 240px;
   }
+
   .main-sidebar.active {
     left: 0;
   }
+
   .content-wrapper {
     margin-left: 0 !important;
     padding: 1rem;
@@ -182,6 +239,7 @@ a:hover, .btn:hover {
   .main-sidebar {
     width: 220px;
   }
+
   .content-wrapper {
     margin-left: 220px;
     padding: 1rem;
@@ -190,18 +248,36 @@ a:hover, .btn:hover {
 
 /* Medium devices (landscape tablets) */
 @media (min-width: 769px) and (max-width: 1024px) {
-  .main-sidebar { width: 200px; }
-  .content-wrapper { margin-left: 200px; padding: 1.5rem; }
+  .main-sidebar {
+    width: 200px;
+  }
+
+  .content-wrapper {
+    margin-left: 200px;
+    padding: 1.5rem;
+  }
 }
 
 /* Large devices (desktops) */
 @media (min-width: 1025px) and (max-width: 1199px) {
-  .main-sidebar { width: 240px; }
-  .content-wrapper { margin-left: 240px; padding: 2rem; }
+  .main-sidebar {
+    width: 240px;
+  }
+
+  .content-wrapper {
+    margin-left: 240px;
+    padding: 2rem;
+  }
 }
 
 /* Extra large devices (large desktops) */
 @media (min-width: 1200px) {
-  .main-sidebar { width: 260px; }
-  .content-wrapper { margin-left: 260px; padding: 2rem; }
+  .main-sidebar {
+    width: 260px;
+  }
+
+  .content-wrapper {
+    margin-left: 260px;
+    padding: 2rem;
+  }
 }
