@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Your OTP Code</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f7; color: #333; }
+    .container { background: #ffffff; padding: 20px; margin: auto; max-width: 500px; border-radius: 8px; }
+    .otp { font-size: 24px; font-weight: bold; color: #2c7be5; }
+    .footer { font-size: 12px; color: #777; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Hello {{ user_name|default:"User" }},</h2>
+    <p>Your One-Time Password (OTP) is:</p>
+    <p class="otp">{{ otp_code }}</p>
+    <p>This code will expire in 10 minutes. Please keep it secure and do not share it with anyone.</p>
+    <p>Thank you,<br>{{ site_name|default:"Django Auth System" }}</p>
+    <div class="footer">
+      If you didn’t request this, please ignore this email.
+    </div>
+  </div>
+</body>
+</html>

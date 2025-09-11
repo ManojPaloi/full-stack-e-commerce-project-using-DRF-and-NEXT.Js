@@ -9,6 +9,8 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 import random
 
 from .models import CustomUser, EmailOTP, PendingUser
@@ -31,38 +33,31 @@ def generate_otp():
     """Generate a random 6-digit OTP code."""
     return str(random.randint(100000, 999999))
 
-
-def send_otp_email(email, otp_code, purpose="verification"):
+def send_otp_email(email, otp_code, purpose="verification", user_name=None):
     """
-    Send an OTP email to the user.
-
-    Args:
-        email (str): Recipient email address.
-        otp_code (str): OTP code to send.
-        purpose (str): Purpose of the OTP (verification/password_reset).
+    Send an OTP email to the user using both text and HTML templates.
     """
-    subject = "Your OTP Code"
-    if purpose == "password_reset":
-        subject = "Password Reset OTP"
+    subject = "Your OTP Code" if purpose == "verification" else "Password Reset OTP"
 
-    message = f"""
-    Hello,
+    context = {
+        "otp_code": otp_code,
+        "user_name": user_name or "User",
+        "site_name": "Django Auth System",
+    }
 
-    Your OTP is {otp_code}.
-    It will expire in 10 minutes.
+    # Load text and HTML templates
+    text_content = render_to_string("emails/otp_email.txt", context)
+    html_content = render_to_string("emails/otp_email.html", context)
 
-    Thank you,
-    Django Auth System
-    """
-
-    send_mail(
+    # Create email with both text and HTML parts
+    email_message = EmailMultiAlternatives(
         subject=subject,
-        message=message,
+        body=text_content,
         from_email=None,  # Uses DEFAULT_FROM_EMAIL from settings.py
-        recipient_list=[email],
-        fail_silently=False,
+        to=[email],
     )
-
+    email_message.attach_alternative(html_content, "text/html")
+    email_message.send()
 
 # ------------------------
 # Authentication & User Management
