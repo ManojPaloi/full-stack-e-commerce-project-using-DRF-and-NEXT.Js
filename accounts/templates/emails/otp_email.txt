@@ -1,8 +1,9 @@
-Hello {{ user_name|default:"User" }},
+Hello {{ user_name }},
 
-Your One-Time Password (OTP) is: {{ otp_code }}
+Your OTP code for {{ site_name }} is: {{ otp_code }}
 
-This OTP will expire in 10 minutes. Please do not share this code with anyone.
+This code is valid for 10 minutes to complete your {{ purpose|default:"verification" }}.
 
-Thank you,  
-{{ site_name|default:"Django Auth System" }}
+If you didn’t request this, you can safely ignore this email.
+
+Thank you for choosing {{ site_name }}!

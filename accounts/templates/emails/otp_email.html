@@ -1,25 +1,131 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Your OTP Code</title>
-  <style>
-    body { font-family: Arial, sans-serif; background-color: #f4f4f7; color: #333; }
-    .container { background: #ffffff; padding: 20px; margin: auto; max-width: 500px; border-radius: 8px; }
-    .otp { font-size: 24px; font-weight: bold; color: #2c7be5; }
-    .footer { font-size: 12px; color: #777; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h2>Hello {{ user_name|default:"User" }},</h2>
-    <p>Your One-Time Password (OTP) is:</p>
-    <p class="otp">{{ otp_code }}</p>
-    <p>This code will expire in 10 minutes. Please keep it secure and do not share it with anyone.</p>
-    <p>Thank you,<br>{{ site_name|default:"Django Auth System" }}</p>
-    <div class="footer">
-      If you didn’t request this, please ignore this email.
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>Your OTP Code</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f5f7fa;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #333;
+      }
+      .wrapper {
+        width: 100%;
+        table-layout: fixed;
+        background-color: #f5f7fa;
+        padding-bottom: 40px;
+      }
+      .main {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+      .header {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        padding: 30px 20px;
+        text-align: center;
+      }
+      .header h1 {
+        color: #ffffff;
+        margin: 0;
+        font-size: 24px;
+        font-weight: bold;
+        letter-spacing: 1px;
+      }
+      .banner {
+        width: 100%;
+        display: block;
+      }
+      .content {
+        padding: 25px 20px;
+        text-align: center;
+      }
+      .content h2 {
+        margin-top: 0;
+        font-size: 22px;
+        color: #111827;
+      }
+      .content p {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #4b5563;
+      }
+      .otp-box {
+        display: inline-block;
+        background-color: #f0f9ff;
+        border: 2px dashed #3b82f6;
+        border-radius: 6px;
+        font-size: 26px;
+        font-weight: bold;
+        letter-spacing: 4px;
+        color: #2563eb;
+        padding: 15px 25px;
+        margin: 20px 0;
+      }
+      .cta {
+        margin: 25px 0;
+      }
+      .cta a {
+        background-color: #2563eb;
+        color: #ffffff !important;
+        text-decoration: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        display: inline-block;
+      }
+      .footer {
+        background-color: #f9fafb;
+        padding: 20px;
+        text-align: center;
+        font-size: 13px;
+        color: #6b7280;
+      }
+      @media only screen and (max-width: 600px) {
+        .content {
+          padding: 20px 15px;
+        }
+        .otp-box {
+          font-size: 22px;
+          padding: 12px 20px;
+        }
+        .cta a {
+          padding: 10px 20px;
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="main">
+        <div class="header">
+          <h1>{{ site_name }}</h1>
+        </div>
+        <div class="content">
+          <h2>Hello {{ user_name }},</h2>
+          <p>
+            Thank you for shopping with <strong>{{ site_name }}</strong>! Use the OTP code below to complete your {{ purpose|default:'verification' }}. This code will expire in <strong>10 minutes</strong>.
+          </p>
+          <div class="otp-box">{{ otp_code }}</div>
+          <div class="cta">
+            <a href="{{ login_url|default:'#' }}">Continue to {{ site_name }}</a>
+          </div>
+          <p>If you didn’t request this, you can safely ignore this email.</p>
+        </div>
+        <div class="footer">
+          © {{ site_name }} • Secure e-commerce you can trust.<br />
+          Please do not reply to this automated message.
+        </div>
+      </div>
     </div>
-  </div>
-</body>
+  </body>
 </html>
