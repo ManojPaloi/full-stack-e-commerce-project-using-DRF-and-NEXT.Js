@@ -40,92 +40,74 @@ class UserSerializer(serializers.ModelSerializer):
 # -------------------------------------------------------------------
 # Register Serializer
 # -------------------------------------------------------------------
-from rest_framework import serializers
-from accounts.models import CustomUser, PendingUser, EmailOTP
-
-class RegisterSerializer(serializers.Serializer):
-    first_name = serializers.CharField(max_length=50)
-    last_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
-    email = serializers.EmailField()
-    mobile_no = serializers.CharField(max_length=10)
-    address = serializers.CharField(required=False, allow_blank=True)
-    pin_code = serializers.CharField(max_length=10, required=False, allow_blank=True)
+class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True, label="Confirm Password")
     profile_pic = serializers.ImageField(required=False, allow_null=True)
 
+    class Meta:
+        model = CustomUser
+        fields = [
+            "first_name", "last_name", "email", "mobile_no",
+            "address", "pin_code", "password", "password2", "profile_pic"
+        ]
+
     def validate(self, attrs):
         if attrs.get("password") != attrs.get("password2"):
             raise serializers.ValidationError({"password": "Passwords do not match."})
-
-        # Check uniqueness against CustomUser and PendingUser
-        if CustomUser.objects.filter(email=attrs["email"]).exists() or \
-           PendingUser.objects.filter(email=attrs["email"]).exists():
-            raise serializers.ValidationError({"email": "This email is already in use or awaiting verification."})
-
-        if CustomUser.objects.filter(mobile_no=attrs["mobile_no"]).exists() or \
-           PendingUser.objects.filter(mobile_no=attrs["mobile_no"]).exists():
-            raise serializers.ValidationError({"mobile_no": "This mobile number is already in use or awaiting verification."})
         return attrs
 
     def create(self, validated_data):
-        # Remove fields we don't need to store directly
         validated_data.pop("password2", None)
         profile_pic = validated_data.pop("profile_pic", None)
-
-        # ✅ Hash password but don't create CustomUser yet
-        from django.contrib.auth.hashers import make_password
-        hashed_password = make_password(validated_data["password"])
-
-        pending_user = PendingUser.objects.create(
-            email=validated_data["email"],
+        user = CustomUser.objects.create_user(
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
+            email=validated_data["email"],
+            mobile_no=validated_data.get("mobile_no", ""),
             address=validated_data.get("address", ""),
             pin_code=validated_data.get("pin_code", ""),
-            password=hashed_password,  # store hashed password
+            password=validated_data["password"],
+            is_active=False,
         )
+        if profile_pic:
+            user.profile_pic = profile_pic
+            user.save()
+        return user
 
-        # ✅ Create and send OTP
-        otp = EmailOTP.create_new(email=pending_user.email, purpose="registration")
-        from accounts.utils import send_otp_email  # adjust your util path
-        send_otp_email(pending_user.email, otp.code, "verification")
-
-        return pending_user
 
 # -------------------------------------------------------------------
 # Login Serializer
 # -------------------------------------------------------------------
 class LoginSerializer(serializers.Serializer):
     """
-    Serializer for user login.
-    Accepts either email or username in `login` field.
+    Login serializer supporting email or username.
     """
-
-    login = serializers.CharField(required=True)
+    login = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        login = data.get("login")
+        login_input = data.get("login", "").strip()
         password = data.get("password")
 
-        if not login or not password:
-            raise serializers.ValidationError("Both login (email/username) and password are required.")
+        if not login_input or not password:
+            raise serializers.ValidationError("Both login and password are required.")
 
-        # Resolve user by email or username
-        try:
-            if "@" in login:
-                user = User.objects.get(email__iexact=login)
-            else:
-                user = User.objects.get(username__iexact=login)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Invalid email/username or password.")
+        # Try to get user by email or username
+        user = None
+        if "@" in login_input:
+            user = User.objects.filter(email__iexact=login_input).first()
+        else:
+            user = User.objects.filter(username__iexact=login_input).first()
 
-        if not user.check_password(password):
-            raise serializers.ValidationError("Invalid email/username or password.")
+        if not user:
+            raise serializers.ValidationError("No account found with this email/username.")
 
         if not user.is_active:
-            raise serializers.ValidationError("Your account is not active. Please verify your email before login.")
+            raise serializers.ValidationError("Your account is not verified. Please check your email.")
+
+        if not user.check_password(password):
+            raise serializers.ValidationError("Incorrect password.")
 
         data["user"] = user
         return data

@@ -69,10 +69,14 @@ def generate_random_username(first_name: str = None) -> str:
 # -------------------------------------------------------------------
 
 class PendingUser(models.Model):
+    """
+    Temporary model to store user details before OTP verification.
+
+    Once the user verifies their email using OTP, the data is migrated to CustomUser.
+    """
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=50, blank=True)
     last_name = models.CharField(max_length=50, blank=True)
-    mobile_no = models.CharField(max_length=15, unique=True, null=True, blank=True)  # ✅ Added field
     address = models.CharField(max_length=255, blank=True)
     pin_code = models.CharField(max_length=10, blank=True)
     password = models.CharField(max_length=128)  # Already hashed
@@ -80,7 +84,6 @@ class PendingUser(models.Model):
 
     def __str__(self):
         return f"PendingUser: {self.email}"
-
 
 
 # -------------------------------------------------------------------
@@ -94,6 +97,19 @@ class CustomUserManager(BaseUserManager):
     """
 
     def create_user(self, email, password=None, first_name=None, mobile_no=None, **extra_fields):
+        """
+        Create and return a new user.
+
+        Args:
+            email (str): Email address (unique identifier)
+            password (str, optional): Raw password (hashed internally)
+            first_name (str, optional): First name of the user
+            mobile_no (str, optional): Mobile number
+            extra_fields (dict): Any additional fields
+
+        Returns:
+            CustomUser: Newly created user instance
+        """
         if not email:
             raise ValueError("The Email field is required.")
         email = self.normalize_email(email)
@@ -105,9 +121,6 @@ class CustomUserManager(BaseUserManager):
                 proposed_username = generate_random_username(first_name)
             extra_fields["username"] = proposed_username
 
-        # Respect is_active if provided; default to False
-        is_active = extra_fields.pop("is_active", False)
-
         user = self.model(
             email=email,
             first_name=first_name or "",
@@ -115,11 +128,22 @@ class CustomUserManager(BaseUserManager):
             **extra_fields,
         )
         user.set_password(password)
-        user.is_active = is_active
+        user.is_active = False  # Inactive until OTP verification
         user.save(using=self._db)
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
+        """
+        Create and return a new superuser.
+
+        Args:
+            email (str): Superuser email
+            password (str): Raw password
+            extra_fields (dict): Additional fields
+
+        Returns:
+            CustomUser: Newly created superuser
+        """
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
@@ -128,10 +152,6 @@ class CustomUserManager(BaseUserManager):
             raise ValueError("Superuser must have is_staff=True.")
         if not extra_fields.get("is_superuser"):
             raise ValueError("Superuser must have is_superuser=True.")
-
-        # Ensure username exists
-        if not extra_fields.get("username"):
-            extra_fields["username"] = generate_random_username("admin")  # default for superuser
 
         return self.create_user(email, password=password, **extra_fields)
 
