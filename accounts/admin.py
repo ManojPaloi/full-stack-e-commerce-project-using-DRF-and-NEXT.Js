@@ -16,7 +16,7 @@ class CustomUserAdmin(UserAdmin):
     )
     
         # Make email, first_name, and last_name clickable
-    list_display_links = ("email", "first_name", "last_name")
+    list_display_links = ("id", "email", "first_name", "last_name")
     
     list_filter = ("is_active", "is_staff", "is_superuser", "created_at")
     search_fields = ("email", "username", "first_name", "last_name", "mobile_no")

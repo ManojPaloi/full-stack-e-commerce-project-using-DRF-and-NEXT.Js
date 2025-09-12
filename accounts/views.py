@@ -311,66 +311,46 @@ class SendOTPView(APIView):
 
 
 class VerifyOTPView(APIView):
-    """Verify OTP, activate account, move PendingUser to CustomUser, and return tokens."""
     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         email = request.data.get("email")
         code = request.data.get("otp")
+        password = request.data.get("password")  # sent by user in registration
 
-        if not email or not code:
-            return Response(
-                {"status": "error", "message": "Email and OTP are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if not all([email, code, password]):
+            return Response({"status": "error", "message": "Email, OTP, and password are required."}, status=400)
 
         try:
-            otp_obj = EmailOTP.objects.filter(
-                email=email, code=code, purpose="registration", is_used=False
-            ).latest("created_at")
+            otp_obj = EmailOTP.objects.filter(email=email, code=code, purpose="registration", is_used=False).latest("created_at")
         except EmailOTP.DoesNotExist:
-            return Response({"status": "error", "message": "Invalid or expired OTP."}, status=400)
+            return Response({"status": "error", "message": "Invalid OTP."}, status=400)
 
         if otp_obj.is_expired():
-            return Response({"status": "error", "message": "OTP expired. Request a new one."}, status=400)
+            return Response({"status": "error", "message": "OTP expired."}, status=400)
 
-        # ✅ Mark OTP as used
         otp_obj.mark_used()
 
-        try:
-            pending = PendingUser.objects.get(email=email)
-        except PendingUser.DoesNotExist:
-            return Response({"status": "error", "message": "No pending registration found."}, status=400)
-
-        # ✅ Create the actual user
-        from accounts.models import CustomUser
-        user = CustomUser.objects.create_user(
-            email=pending.email,
-            password=pending.password,  # already hashed in PendingUser
-            first_name=pending.first_name,
-            last_name=pending.last_name,
-            address=pending.address,
-            pin_code=pending.pin_code,
-            is_active=True,
+        # Create actual user
+        user = CustomUser.objects.create(
+            email=email,
+            username=email.split("@")[0],
+            is_active=True
         )
-        pending.delete()
+        user.set_password(password)
+        user.save()
 
-        # ✅ Generate JWT tokens for immediate login
+        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         access = refresh.access_token
 
-        return Response(
-            {
-                "status": "success",
-                "title": "OTP Verified ✅",
-                "message": "Account verified and logged in successfully.",
-                "email": user.email,
-                "refresh": str(refresh),
-                "access": str(access),
-            },
-            status=200,
-        )
-
+        return Response({
+            "status": "success",
+            "message": "Account verified and created successfully.",
+            "access": str(access),
+            "refresh": str(refresh),
+            "user": UserSerializer(user).data,
+        }, status=200)
 
 
 
