@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from .models import BlacklistedAccessToken
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
@@ -166,6 +167,28 @@ class LogoutView(APIView):
                 {"status": "success", "message": "Already logged out."},
                 status=status.HTTP_200_OK,
             )
+            
+            
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    Custom refresh view that optionally allows
+    sending cookies or extra data on refresh.
+    """
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        # Optionally add cookies here, e.g.:
+        # refresh_token = response.data.get("refresh")
+        # access_token = response.data.get("access")
+        # response.set_cookie("access", access_token, max_age=24*60*60)
+        # response.set_cookie("refresh", refresh_token, max_age=24*60*60)
+        return response
+            
+            
+            
+            
+            
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
