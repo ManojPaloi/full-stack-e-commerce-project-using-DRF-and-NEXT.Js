@@ -1,5 +1,3 @@
-# products/models.py
-
 from django.db import models
 from django.utils.text import slugify
 from django.conf import settings
@@ -18,6 +16,7 @@ class Product(models.Model):
     - JSONField for multiple colors
     - Validators for ratings and stock
     - Optional discount price
+    - Delivery charge and free delivery support
     """
 
     category = models.ForeignKey(
@@ -52,6 +51,16 @@ class Product(models.Model):
         blank=True,
         null=True,
         help_text="Optional discounted price"
+    )
+    delivery_charge = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=50.00,
+        help_text="Delivery charge for this product (default 50, can be changed)"
+    )
+    free_delivery = models.BooleanField(
+        default=False,
+        help_text="If checked, delivery is free and delivery charge is ignored"
     )
     stock = models.PositiveIntegerField(
         default=0,
@@ -103,9 +112,13 @@ class Product(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        """Automatically generate slug if not provided."""
+        """Automatically generate slug if not provided and handle free delivery."""
         if not self.slug:
             self.slug = slugify(self.name)
+        if self.free_delivery:
+            self.delivery_charge = 0
+        elif not self.delivery_charge:
+            self.delivery_charge = 50
         super().save(*args, **kwargs)
 
     @property
@@ -127,11 +140,6 @@ class Product(models.Model):
 class Review(models.Model):
     """
     Represents a review given by a user for a product.
-
-    Modern Features:
-    - Ensures one review per user per product
-    - Rating constrained between 1 and 5
-    - Auto timestamps
     """
 
     product = models.ForeignKey(
