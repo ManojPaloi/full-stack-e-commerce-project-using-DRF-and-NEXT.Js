@@ -40,41 +40,58 @@ class UserSerializer(serializers.ModelSerializer):
 # -------------------------------------------------------------------
 # Register Serializer
 # -------------------------------------------------------------------
-class RegisterSerializer(serializers.ModelSerializer):
+from rest_framework import serializers
+from accounts.models import CustomUser, PendingUser, EmailOTP
+
+class RegisterSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=50)
+    last_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    email = serializers.EmailField()
+    mobile_no = serializers.CharField(max_length=10)
+    address = serializers.CharField(required=False, allow_blank=True)
+    pin_code = serializers.CharField(max_length=10, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True, label="Confirm Password")
     profile_pic = serializers.ImageField(required=False, allow_null=True)
 
-    class Meta:
-        model = CustomUser
-        fields = [
-            "first_name", "last_name", "email", "mobile_no",
-            "address", "pin_code", "password", "password2", "profile_pic"
-        ]
-
     def validate(self, attrs):
         if attrs.get("password") != attrs.get("password2"):
             raise serializers.ValidationError({"password": "Passwords do not match."})
+
+        # Check uniqueness against CustomUser and PendingUser
+        if CustomUser.objects.filter(email=attrs["email"]).exists() or \
+           PendingUser.objects.filter(email=attrs["email"]).exists():
+            raise serializers.ValidationError({"email": "This email is already in use or awaiting verification."})
+
+        if CustomUser.objects.filter(mobile_no=attrs["mobile_no"]).exists() or \
+           PendingUser.objects.filter(mobile_no=attrs["mobile_no"]).exists():
+            raise serializers.ValidationError({"mobile_no": "This mobile number is already in use or awaiting verification."})
         return attrs
 
     def create(self, validated_data):
+        # Remove fields we don't need to store directly
         validated_data.pop("password2", None)
         profile_pic = validated_data.pop("profile_pic", None)
-        user = CustomUser.objects.create_user(
+
+        # ✅ Hash password but don't create CustomUser yet
+        from django.contrib.auth.hashers import make_password
+        hashed_password = make_password(validated_data["password"])
+
+        pending_user = PendingUser.objects.create(
+            email=validated_data["email"],
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
-            email=validated_data["email"],
-            mobile_no=validated_data.get("mobile_no", ""),
             address=validated_data.get("address", ""),
             pin_code=validated_data.get("pin_code", ""),
-            password=validated_data["password"],
-            is_active=False,
+            password=hashed_password,  # store hashed password
         )
-        if profile_pic:
-            user.profile_pic = profile_pic
-            user.save()
-        return user
 
+        # ✅ Create and send OTP
+        otp = EmailOTP.create_new(email=pending_user.email, purpose="registration")
+        from accounts.utils import send_otp_email  # adjust your util path
+        send_otp_email(pending_user.email, otp.code, "verification")
+
+        return pending_user
 
 # -------------------------------------------------------------------
 # Login Serializer

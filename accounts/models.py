@@ -69,14 +69,10 @@ def generate_random_username(first_name: str = None) -> str:
 # -------------------------------------------------------------------
 
 class PendingUser(models.Model):
-    """
-    Temporary model to store user details before OTP verification.
-
-    Once the user verifies their email using OTP, the data is migrated to CustomUser.
-    """
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=50, blank=True)
     last_name = models.CharField(max_length=50, blank=True)
+    mobile_no = models.CharField(max_length=15, unique=True, null=True, blank=True)  # ✅ Added field
     address = models.CharField(max_length=255, blank=True)
     pin_code = models.CharField(max_length=10, blank=True)
     password = models.CharField(max_length=128)  # Already hashed
@@ -84,6 +80,7 @@ class PendingUser(models.Model):
 
     def __str__(self):
         return f"PendingUser: {self.email}"
+
 
 
 # -------------------------------------------------------------------
