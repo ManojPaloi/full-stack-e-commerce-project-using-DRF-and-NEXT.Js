@@ -246,7 +246,7 @@ class SendOTPView(APIView):
 
 
 class VerifyOTPView(APIView):
-    """Verify OTP and activate user account."""
+    """Verify OTP, activate user account, and auto-login new user."""
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -269,21 +269,33 @@ class VerifyOTPView(APIView):
         if otp_obj.is_expired():
             return Response({"status": "error", "message": "OTP expired. Request a new one."}, status=400)
 
+        # Mark OTP as used
         otp_obj.is_used = True
         otp_obj.save()
 
+        # Activate user
         user = otp_obj.user
         user.is_active = True
         user.save()
 
+        # Generate JWT tokens for automatic login
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
         return Response(
-            {"status": "success",
-        "title": "OTP Verified ✅",
-        "message": "Account verified successfully.",
-        "next_step": "Go to login and access your account.",
-        "email": user.email,},
+            {
+                "status": "success",
+                "title": "OTP Verified ✅",
+                "message": "Account verified and logged in successfully.",
+                "next_step": "You are now logged in and can access your account.",
+                "email": user.email,
+                "access": access_token,
+                "refresh": str(refresh),
+                "user": UserSerializer(user, context={"request": request}).data
+            },
             status=200,
         )
+
 
 
 class ResendOTPView(APIView):
