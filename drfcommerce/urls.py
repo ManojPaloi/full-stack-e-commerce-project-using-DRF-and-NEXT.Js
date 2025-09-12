@@ -37,7 +37,8 @@ urlpatterns = [
     # ✅ Application endpoints
     path("api/accounts/", include("accounts.urls")),
     path("api/category/", include("category.urls")),
-    path("api/banners/", include("banner.urls")),  # ✅ Correct banners include
+    path("api/banners/", include("banner.urls")),
+    path("api/products/", include("products.urls")),
 
     # Optional: DRF router endpoints (if using viewsets)
     # path("api/", include(router.urls)),

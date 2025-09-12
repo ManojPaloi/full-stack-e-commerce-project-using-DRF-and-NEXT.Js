@@ -32,9 +32,9 @@ INSTALLED_APPS = [
 
     # Local apps
     "accounts",
-    "main",
     "category", 
     "banner",
+    "products",
 
 
     # Third-party
