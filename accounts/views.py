@@ -173,17 +173,35 @@ class LogoutView(APIView):
 
 class CustomTokenRefreshView(TokenRefreshView):
     """
-    Custom refresh view that optionally allows
-    sending cookies or extra data on refresh.
+    Handles access token refresh.
+    Automatically updates cookies if needed.
     """
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        # Optionally add cookies here, e.g.:
-        # refresh_token = response.data.get("refresh")
-        # access_token = response.data.get("access")
-        # response.set_cookie("access", access_token, max_age=24*60*60)
-        # response.set_cookie("refresh", refresh_token, max_age=24*60*60)
+        
+        # Set cookies for frontend
+        access_token = response.data.get("access")
+        refresh_token = response.data.get("refresh")
+
+        if access_token:
+            response.set_cookie(
+                key="access",
+                value=access_token,
+                max_age=60,  # 1 minute
+                httponly=True,
+                samesite="Lax",
+            )
+        if refresh_token:
+            response.set_cookie(
+                key="refresh",
+                value=refresh_token,
+                max_age=24*60*60,  # 1 day
+                httponly=True,
+                samesite="Lax",
+            )
+
         return response
+
             
             
             
