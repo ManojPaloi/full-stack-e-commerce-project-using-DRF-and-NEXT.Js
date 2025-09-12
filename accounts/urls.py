@@ -3,8 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import (
-    RegisterView,
-    SendOTPView,                # ✅ Add this import
+    RegisterView,               # ✅ Add this import
     VerifyOTPView,
     ResendOTPView,
     LoginView,
@@ -43,8 +42,7 @@ def accounts_root(request, format=None):
 urlpatterns = [
     # ✅ OTP for registration
     path("", accounts_root, name="accounts-root"),
-    path("register/", RegisterView.as_view(), name="register"),
-    path("otp/send/", SendOTPView.as_view(), name="send_otp"),       # ✅ Added send OTP endpoint
+    path("register/", RegisterView.as_view(), name="register"),      # ✅ Added send OTP endpoint
     path("otp/verify/", VerifyOTPView.as_view(), name="verify_otp"),
     path("otp/resend/", ResendOTPView.as_view(), name="resend_otp"),
 
