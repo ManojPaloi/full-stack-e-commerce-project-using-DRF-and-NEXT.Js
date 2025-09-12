@@ -244,7 +244,6 @@ class SendOTPView(APIView):
 
         return Response({"status": "success", "message": "OTP sent to email."}, status=200)
 
-
 class VerifyOTPView(APIView):
     """Verify OTP, activate user account, and auto-login new user."""
     permission_classes = [AllowAny]
@@ -273,8 +272,11 @@ class VerifyOTPView(APIView):
         otp_obj.is_used = True
         otp_obj.save()
 
-        # Activate user
+        # ✅ Use existing user from OTP
         user = otp_obj.user
+        if not user:
+            return Response({"status": "error", "message": "User not found for this OTP."}, status=404)
+
         user.is_active = True
         user.save()
 
@@ -295,6 +297,7 @@ class VerifyOTPView(APIView):
             },
             status=200,
         )
+
 
 
 
@@ -401,23 +404,57 @@ class SendPasswordResetOTPView(APIView):
 
 
 class VerifyPasswordResetOTPView(APIView):
-    """Verify OTP for password reset."""
+    """Verify OTP for password reset using only OTP and email."""
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = EmailOTPSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        email = request.data.get("email")
+        otp_code = request.data.get("otp")  # Only OTP
 
-        user = serializer.validated_data["user"]
+        if not email or not otp_code:
+            return Response(
+                {"status": "error", "message": "Email and OTP are required."},
+                status=400,
+            )
+
+        try:
+            # Automatically filter for password_reset OTPs
+            otp_obj = EmailOTP.objects.filter(
+                email=email, code=otp_code, purpose="password_reset", is_used=False
+            ).latest("created_at")
+        except EmailOTP.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Invalid or expired OTP."}, 
+                status=400
+            )
+
+        if otp_obj.is_expired():
+            return Response(
+                {"status": "error", "message": "OTP expired. Request a new one."}, 
+                status=400
+            )
+
+        # Mark OTP as used
+        otp_obj.is_used = True
+        otp_obj.save()
+
+        user = otp_obj.user
+        if not user:
+            return Response(
+                {"status": "error", "message": "No user associated with this OTP."}, 
+                status=404
+            )
 
         return Response(
-            {"status": "success",
-            "title": "OTP Verified ✅",
-            "message": "Your OTP has been successfully verified. You may now reset your password securely.",
-            "next_step": "Proceed to set a new password to regain access to your account.",
-            "email": user.email,},
+            {
+                "status": "success",
+                "title": "OTP Verified ✅",
+                "message": "Your OTP has been successfully verified. You may now reset your password securely.",
+                "next_step": "Proceed to set a new password to regain access to your account.",
+                "email": user.email,
+            },
             status=200,
-            )
+        )
 
 
 class ResetPasswordView(APIView):

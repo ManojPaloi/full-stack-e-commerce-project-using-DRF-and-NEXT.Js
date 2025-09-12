@@ -210,6 +210,7 @@ class EmailOTPSerializer(serializers.ModelSerializer):
         return data
 
 
+
 # -------------------------------------------------------------------
 # Password Reset Serializer
 # -------------------------------------------------------------------
