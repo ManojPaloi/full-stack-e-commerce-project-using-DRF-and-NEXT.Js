@@ -39,6 +39,7 @@ INSTALLED_APPS = [
 
     # Third-party
     "rest_framework",
+    "django_filters",
     "rest_framework_simplejwt",
     # 'rest_framework_simplejwt.token_blacklist',
     "corsheaders",
@@ -167,19 +168,30 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 REST_FRAMEWORK = {
+    # 🔑 Authentication backends
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "accounts.authentication.CustomJWTAuthentication",  # ✅ Custom blocklist
+        "accounts.authentication.CustomJWTAuthentication",  # ✅ Custom JWT blocklist
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
+
+    # 🔒 Default permissions
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # ✅ safer default
+        "rest_framework.permissions.AllowAny",  # ✅ Safer default for development
     ],
+
+    # 🖼 Renderers for API responses
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
+
+    # 🔍 Filtering support (required for django-filter)
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend"
+    ],
 }
+
 
 
 

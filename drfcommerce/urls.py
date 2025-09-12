@@ -20,6 +20,8 @@ def api_root(request, format=None):
         "accounts": request.build_absolute_uri("accounts/"),
         "category": request.build_absolute_uri("category/"),
         "banners": request.build_absolute_uri("banners/"),  # updated key for clarity
+        "products": request.build_absolute_uri("products/"),
+
     })
 
 urlpatterns = [
