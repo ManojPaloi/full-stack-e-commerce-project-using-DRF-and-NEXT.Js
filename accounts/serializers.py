@@ -153,10 +153,9 @@ class EmailOTPSerializer(serializers.ModelSerializer):
     - Password Reset
     - Login OTP
     """
-
     email = serializers.EmailField(write_only=True)
     code = serializers.CharField(write_only=True, max_length=6)
-    purpose = serializers.CharField(write_only=True)
+    purpose = serializers.CharField(write_only=True, required=False, default="password_reset")
 
     class Meta:
         model = EmailOTP
@@ -165,7 +164,7 @@ class EmailOTPSerializer(serializers.ModelSerializer):
     def validate(self, data):
         email = data.get("email")
         code = data.get("code")
-        purpose = data.get("purpose")
+        purpose = data.get("purpose") or "password_reset"  # default if not provided
 
         try:
             otp = EmailOTP.objects.filter(
@@ -184,7 +183,7 @@ class EmailOTPSerializer(serializers.ModelSerializer):
         otp.is_used = True
         otp.save()
 
-        # ✅ If for registration, create user
+        # Handle registration OTP
         if purpose == "registration":
             try:
                 pending_data = json.loads(otp.extra_data or "{}")
