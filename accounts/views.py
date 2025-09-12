@@ -112,6 +112,9 @@ class RegisterView(generics.CreateAPIView):
             "message": "An OTP has been sent to your email. Verify to complete registration.",
             "email": pending.email,
         }, status=status.HTTP_201_CREATED)
+        
+        
+        
 
 
 # ------------------------
@@ -307,9 +310,8 @@ class SendOTPView(APIView):
 
 
 
-
 class VerifyOTPView(APIView):
-    """Verify OTP, activate account, and migrate PendingUser → CustomUser."""
+    """Verify OTP, activate account, move PendingUser to CustomUser, and return tokens."""
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -322,63 +324,52 @@ class VerifyOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ✅ Find OTP record
         try:
             otp_obj = EmailOTP.objects.filter(
                 email=email, code=code, purpose="registration", is_used=False
             ).latest("created_at")
         except EmailOTP.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "Invalid or expired OTP."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "error", "message": "Invalid or expired OTP."}, status=400)
 
-        # ✅ Check expiry
         if otp_obj.is_expired():
-            return Response(
-                {"status": "error", "message": "OTP expired. Please request a new one."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "error", "message": "OTP expired. Request a new one."}, status=400)
 
         # ✅ Mark OTP as used
         otp_obj.mark_used()
 
-        # ✅ Fetch pending registration
         try:
             pending = PendingUser.objects.get(email=email)
         except PendingUser.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "No pending registration found."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "error", "message": "No pending registration found."}, status=400)
 
-        # ✅ Create active CustomUser
-        user = CustomUser.objects.create(
+        # ✅ Create the actual user
+        from accounts.models import CustomUser
+        user = CustomUser.objects.create_user(
             email=pending.email,
+            password=pending.password,  # already hashed in PendingUser
             first_name=pending.first_name,
             last_name=pending.last_name,
             address=pending.address,
             pin_code=pending.pin_code,
-            is_active=True
+            is_active=True,
         )
-        # Set password correctly (PendingUser.password is already hashed)
-        user.password = pending.password  
-        user.save()
-
-        # ✅ Delete pending record
         pending.delete()
+
+        # ✅ Generate JWT tokens for immediate login
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
 
         return Response(
             {
                 "status": "success",
                 "title": "OTP Verified ✅",
-                "message": "Account verified successfully.",
-                "next_step": "Go to login and access your account.",
+                "message": "Account verified and logged in successfully.",
                 "email": user.email,
+                "refresh": str(refresh),
+                "access": str(access),
             },
-            status=status.HTTP_200_OK,
+            status=200,
         )
-
 
 
 
