@@ -112,7 +112,7 @@ class LoginView(APIView):
 
         user = serializer.validated_data["user"]
 
-        # Create JWT tokens
+        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
