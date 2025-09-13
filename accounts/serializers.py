@@ -90,38 +90,30 @@ class LoginSerializer(serializers.Serializer):
         login_input = data.get("login", "").strip()
         password = data.get("password")
 
-        if not login_input or not password:
-            raise serializers.ValidationError({
-                "status": "error",
-                "message": "Both login and password are required."
-            })
+        # --- Empty fields ---
+        if not login_input:
+            raise serializers.ValidationError({"login": "Login (email or username) is required."})
+        if not password:
+            raise serializers.ValidationError({"password": "Password is required."})
 
-        # Find user by email or username
+        # --- Find user ---
         if "@" in login_input:
             user = User.objects.filter(email__iexact=login_input).first()
+            if not user:
+                raise serializers.ValidationError({"login": "No account found with this email."})
         else:
             user = User.objects.filter(username__iexact=login_input).first()
+            if not user:
+                raise serializers.ValidationError({"login": "No account found with this username."})
 
-        if not user:
-            raise serializers.ValidationError({
-                "status": "error",
-                "message": "No account found with this email or username."
-            })
-
+        # --- Active status ---
         if not user.is_active:
-            raise serializers.ValidationError({
-                "status": "error",
-                "message": "Your account is not verified. Please check your email."
-            })
+            raise serializers.ValidationError({"login": "Your account is not verified. Please check your email."})
 
-        # ✅ Check password correctness
+        # --- Password check ---
         if not user.check_password(password):
-            raise serializers.ValidationError({
-                "status": "error",
-                "message": "Incorrect password. Please try again."
-            })
+            raise serializers.ValidationError({"password": "Incorrect password. Please try again."})
 
-        # ✅ All good
         data["user"] = user
         return data
 
