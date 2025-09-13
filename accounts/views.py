@@ -11,6 +11,11 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework.response import Response
+from rest_framework import status
+
 import random
 
 from .models import CustomUser, EmailOTP, PendingUser
@@ -162,6 +167,42 @@ class LogoutView(APIView):
                 {"status": "success", "message": "Already logged out."},
                 status=status.HTTP_200_OK,
             )
+            
+            
+            
+            
+            
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    Returns both a new access token AND a new refresh token
+    when ROTATE_REFRESH_TOKENS=True, so frontend can replace old tokens.
+    """
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
+
+        data = serializer.validated_data
+
+        return Response({
+            "status": "success",
+            "access": data.get("access"),
+            "refresh": data.get("refresh", request.data.get("refresh")),  # return new refresh if rotated
+        }, status=status.HTTP_200_OK)
+            
+            
+            
+            
+            
+            
+            
+            
+
+
+
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
