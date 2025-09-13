@@ -217,20 +217,29 @@ class EmailOTPSerializer(serializers.ModelSerializer):
 class PasswordResetSerializer(serializers.Serializer):
     """
     Serializer for resetting password after OTP verification.
-    Ensures both password fields match before updating.
+    Ensures passwords match and OTP was already verified.
     """
-
     email = serializers.EmailField()
     new_password = serializers.CharField(min_length=6, write_only=True)
     confirm_password = serializers.CharField(min_length=6, write_only=True)
 
     def validate(self, data):
         email = data.get("email")
-        password = data.get("password")
-        password2 = data.get("password2")
+        new_password = data.get("new_password")
+        confirm_password = data.get("confirm_password")
 
-        if password != password2:
-            raise serializers.ValidationError({"password2": "Passwords do not match."})
+        if new_password != confirm_password:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+
+        # ✅ Check that OTP for password reset was verified
+        from .models import EmailOTP
+        otp_verified = EmailOTP.objects.filter(
+            email=email, purpose="password_reset", is_used=True
+        ).exists()
+        if not otp_verified:
+            raise serializers.ValidationError(
+                {"otp": "No verified OTP found. Please verify OTP before resetting password."}
+            )
 
         try:
             user = CustomUser.objects.get(email=email)
@@ -238,8 +247,8 @@ class PasswordResetSerializer(serializers.Serializer):
             raise serializers.ValidationError({"email": "No account found with this email."})
 
         data["user"] = user
-        data["new_password"] = password
         return data
+
 
 
 # -------------------------------------------------------------------

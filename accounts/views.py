@@ -443,7 +443,6 @@ class VerifyPasswordResetOTPView(APIView):
 
 
 class ResetPasswordView(APIView):
-    """Reset user password after OTP verification."""
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -456,10 +455,17 @@ class ResetPasswordView(APIView):
         user.set_password(new_password)
         user.save()
 
+        # Remove all password-reset OTPs for security
         EmailOTP.objects.filter(email=user.email, purpose="password_reset").delete()
 
-        return Response({"status": "success",
-        "title": "Password Reset Successful 🔑",
-        "message": "Your password has been updated successfully.",
-        "next_step": "You can now log in with your new password.",
-        "email": user.email,}, status=200)
+        return Response(
+            {
+                "status": "success",
+                "title": "Password Reset Successful 🔑",
+                "message": "Your password has been updated successfully.",
+                "next_step": "You can now log in with your new password.",
+                "email": user.email,
+            },
+            status=status.HTTP_200_OK,
+        )
+
