@@ -1,4 +1,5 @@
 from .base import *
+import os
 
 DEBUG = True
 
@@ -15,4 +16,8 @@ CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 SECURE_HSTS_SECONDS = 0
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+# Read ALLOWED_HOSTS from .env
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+
+# Optional: Allow all origins for local dev
+CORS_ALLOW_ALL_ORIGINS = True

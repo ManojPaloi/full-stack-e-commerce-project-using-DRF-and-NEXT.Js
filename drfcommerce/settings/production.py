@@ -20,4 +20,5 @@ SECURE_SSL_REDIRECT = True
 
 # Load from environment
 DEBUG = True
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "13.60.196.170"]
+
