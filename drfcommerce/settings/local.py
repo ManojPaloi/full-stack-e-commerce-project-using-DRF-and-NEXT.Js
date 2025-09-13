@@ -16,7 +16,8 @@ CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 SECURE_HSTS_SECONDS = 0
 
-# Read ALLOWED_HOSTS from .env
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-# Optional: Allow all origins for local dev
-CORS_ALLOW_ALL_ORIGINS = True
+# Read from environment variable or fallback to list of allowed hosts
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost,13.60.196.170").split(",")
+
+# Optional: print for debugging
+print("ALLOWED_HOSTS:", ALLOWED_HOSTS)
