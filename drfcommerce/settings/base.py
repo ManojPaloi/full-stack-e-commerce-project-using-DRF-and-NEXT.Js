@@ -15,9 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS", "localhost,127.0.0.1,13.60.196.170"
-).split(",")
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "13.60.196.170"]
 
 
 # -------------------------------------------------------------------
