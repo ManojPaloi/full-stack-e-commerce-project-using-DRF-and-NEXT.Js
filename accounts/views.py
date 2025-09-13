@@ -1,19 +1,22 @@
-from rest_framework import generics, status
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
-from .models import BlacklistedAccessToken
-from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from django.utils import timezone
-from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
+from datetime import timedelta
 import random
 
-from .models import CustomUser, EmailOTP, PendingUser
+from django.utils import timezone
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail, EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+
+from rest_framework import generics, status, serializers
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from .models import CustomUser, EmailOTP, PendingUser, BlacklistedAccessToken
 from .serializers import (
     UserSerializer,
     RegisterSerializer,
@@ -22,6 +25,7 @@ from .serializers import (
     EmailOTPSerializer,
     PasswordResetSerializer,
 )
+
 
 User = get_user_model()
 
@@ -130,38 +134,52 @@ class LoginView(APIView):
 # ------------------------
 # Logout View
 # ------------------------
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginView(APIView):
+    permission_classes = [AllowAny]
 
     def post(self, request):
-        refresh_token = request.data.get("refresh")
-        if not refresh_token:
-            return Response(
-                {"status": "error", "message": "Refresh token required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
+        user = serializer.validated_data["user"]
+
+        # Generate refresh & access token
+        refresh = RefreshToken.for_user(user)
+        access = str(refresh.access_token)
+
+        return Response(
+            {
+                "status": "success",
+                "message": "Login successful 🎉",
+                "access": access,
+                "refresh": str(refresh),
+                "user": UserSerializer(user, context={"request": request}).data
+            },
+            status=status.HTTP_200_OK
+        )
+        
+        
+
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
         try:
-            # Blacklist refresh token
-            token = RefreshToken(refresh_token)
-            token.blacklist()
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
 
-            # Blacklist current access token too
-            access_token = request.auth
-            if access_token:
-                jti = access_token.get("jti")
-                if jti:
-                    BlacklistedAccessToken.objects.get_or_create(jti=jti)
+        # ✅ Return both new access and refresh tokens
+        return Response({
+            "access": serializer.validated_data["access"],
+            "refresh": serializer.validated_data.get("refresh", request.data.get("refresh")),
+        }, status=status.HTTP_200_OK)        
+        
+        
 
-            return Response(
-                {"status": "success", "message": "Logged out successfully."},
-                status=status.HTTP_200_OK,
-            )
-        except Exception:
-            return Response(
-                {"status": "success", "message": "Already logged out."},
-                status=status.HTTP_200_OK,
-            )
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
