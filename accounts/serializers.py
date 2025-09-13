@@ -91,9 +91,12 @@ class LoginSerializer(serializers.Serializer):
         password = data.get("password")
 
         if not login_input or not password:
-            raise serializers.ValidationError("Both login and password are required.")
+            raise serializers.ValidationError({
+                "status": "error",
+                "message": "Both login and password are required."
+            })
 
-        # Try to get user by email or username
+        # Try to find user by email or username
         user = None
         if "@" in login_input:
             user = User.objects.filter(email__iexact=login_input).first()
@@ -101,17 +104,29 @@ class LoginSerializer(serializers.Serializer):
             user = User.objects.filter(username__iexact=login_input).first()
 
         if not user:
-            raise serializers.ValidationError("No account found with this email/username.")
+            # ❌ Username/email not found
+            raise serializers.ValidationError({
+                "status": "error",
+                "message": "No account found with this email/username."
+            })
 
         if not user.is_active:
-            raise serializers.ValidationError("Your account is not verified. Please check your email.")
+            # ❌ User exists but inactive
+            raise serializers.ValidationError({
+                "status": "error",
+                "message": "Your account is not verified. Please check your email."
+            })
 
         if not user.check_password(password):
-            raise serializers.ValidationError("Incorrect password.")
+            # ❌ Password is wrong
+            raise serializers.ValidationError({
+                "status": "error",
+                "message": "Incorrect password. Please try again."
+            })
 
+        # ✅ Everything is correct
         data["user"] = user
         return data
-
 
 # -------------------------------------------------------------------
 # Profile Update Serializer
