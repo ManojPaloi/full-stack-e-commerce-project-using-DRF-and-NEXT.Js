@@ -104,9 +104,6 @@ class RegisterView(generics.CreateAPIView):
         )
 
 
-# ------------------------
-# Login View
-# ------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -129,9 +126,10 @@ class LoginView(APIView):
                 "refresh": str(refresh),
                 "user": UserSerializer(user, context={"request": request}).data
             },
-            status=status.HTTP_200_OK
+            status=200
         )
-
+        
+        
 # ------------------------
 # Logout View
 # ------------------------
