@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+import dj_database_url
+
 
 # -------------------------------------------------------------------
 # Load environment variables
@@ -14,8 +16,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS", "localhost,127.0.0.1"
+    "ALLOWED_HOSTS", "localhost,127.0.0.1,13.60.196.170"
 ).split(",")
+
 
 # -------------------------------------------------------------------
 # Installed apps
