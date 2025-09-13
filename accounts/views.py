@@ -1,32 +1,27 @@
-from datetime import timedelta
-import random
-
-from django.utils import timezone
-from django.contrib.auth import get_user_model
-from django.core.mail import send_mail, EmailMultiAlternatives
-from django.template.loader import render_to_string
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-
-from rest_framework import generics, status, serializers
-from rest_framework.views import APIView
+from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from .models import BlacklistedAccessToken
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from django.utils import timezone
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+import random
 
-from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
-from .models import CustomUser, EmailOTP, PendingUser, BlacklistedAccessToken
+from .models import CustomUser, EmailOTP, PendingUser
 from .serializers import (
     UserSerializer,
     RegisterSerializer,
     LoginSerializer,
-    
     ProfileUpdateSerializer,
     EmailOTPSerializer,
     PasswordResetSerializer,
 )
-
 
 User = get_user_model()
 
@@ -143,7 +138,7 @@ class LogoutView(APIView):
         if not refresh_token:
             return Response(
                 {"status": "error", "message": "Refresh token required."},
-                status=400,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
@@ -160,34 +155,13 @@ class LogoutView(APIView):
 
             return Response(
                 {"status": "success", "message": "Logged out successfully."},
-                status=200,
+                status=status.HTTP_200_OK,
             )
         except Exception:
             return Response(
                 {"status": "success", "message": "Already logged out."},
-                status=200,
+                status=status.HTTP_200_OK,
             )
-        
-
-
-
-class CustomTokenRefreshView(TokenRefreshView):
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except TokenError as e:
-            raise InvalidToken(e.args[0])
-
-        # ✅ Return both new access and refresh tokens
-        return Response({
-            "access": serializer.validated_data["access"],
-            "refresh": serializer.validated_data.get("refresh", request.data.get("refresh")),
-        }, status=status.HTTP_200_OK)        
-        
-        
-
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
