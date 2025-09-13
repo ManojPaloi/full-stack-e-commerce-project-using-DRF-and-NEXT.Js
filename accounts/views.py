@@ -104,9 +104,6 @@ class RegisterView(generics.CreateAPIView):
         )
 
 
-# ------------------------
-# Login View
-# ------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -117,7 +114,7 @@ class LoginView(APIView):
 
         user = serializer.validated_data["user"]
 
-        # ✅ Generate JWT tokens
+        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
@@ -129,10 +126,10 @@ class LoginView(APIView):
                 "refresh": str(refresh),
                 "user": UserSerializer(user, context={"request": request}).data
             },
-            status=status.HTTP_200_OK
+            status=200
         )
-
-
+        
+        
 # ------------------------
 # Logout View
 # ------------------------
@@ -141,21 +138,20 @@ class LogoutView(APIView):
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
-
         if not refresh_token:
             return Response(
-                {"status": "error", "message": "Refresh token is required."},
+                {"status": "error", "message": "Refresh token required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
-            # ✅ Blacklist refresh token
+            # Blacklist refresh token
             token = RefreshToken(refresh_token)
             token.blacklist()
 
-            # ✅ Blacklist access token as well
-            access_token = request.auth  # the validated access token
-            if access_token and isinstance(access_token, dict):
+            # Blacklist current access token too
+            access_token = request.auth
+            if access_token:
                 jti = access_token.get("jti")
                 if jti:
                     BlacklistedAccessToken.objects.get_or_create(jti=jti)
@@ -164,16 +160,14 @@ class LogoutView(APIView):
                 {"status": "success", "message": "Logged out successfully."},
                 status=status.HTTP_200_OK,
             )
-        except TokenError:
-            return Response(
-                {"status": "error", "message": "Invalid or expired refresh token."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         except Exception:
             return Response(
-                {"status": "error", "message": "Logout failed. Please try again."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"status": "success", "message": "Already logged out."},
+                status=status.HTTP_200_OK,
             )
+            
+            
+            
             
             
 class CustomTokenRefreshView(TokenRefreshView):
