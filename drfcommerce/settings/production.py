@@ -21,5 +21,3 @@ SECURE_SSL_REDIRECT = True
 # Load from environment
 DEBUG = True
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
-
-
