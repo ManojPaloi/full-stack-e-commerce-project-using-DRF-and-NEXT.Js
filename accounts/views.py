@@ -21,6 +21,7 @@ from .serializers import (
     UserSerializer,
     RegisterSerializer,
     LoginSerializer,
+    
     ProfileUpdateSerializer,
     EmailOTPSerializer,
     PasswordResetSerializer,
@@ -134,31 +135,38 @@ class LoginView(APIView):
 # ------------------------
 # Logout View
 # ------------------------
-@method_decorator(csrf_exempt, name='dispatch')
-class LoginView(APIView):
-    permission_classes = [AllowAny]
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response(
+                {"status": "error", "message": "Refresh token required."},
+                status=400,
+            )
 
-        user = serializer.validated_data["user"]
+        try:
+            # Blacklist refresh token
+            token = RefreshToken(refresh_token)
+            token.blacklist()
 
-        # Generate refresh & access token
-        refresh = RefreshToken.for_user(user)
-        access = str(refresh.access_token)
+            # Blacklist current access token too
+            access_token = request.auth
+            if access_token:
+                jti = access_token.get("jti")
+                if jti:
+                    BlacklistedAccessToken.objects.get_or_create(jti=jti)
 
-        return Response(
-            {
-                "status": "success",
-                "message": "Login successful 🎉",
-                "access": access,
-                "refresh": str(refresh),
-                "user": UserSerializer(user, context={"request": request}).data
-            },
-            status=status.HTTP_200_OK
-        )
-        
+            return Response(
+                {"status": "success", "message": "Logged out successfully."},
+                status=200,
+            )
+        except Exception:
+            return Response(
+                {"status": "success", "message": "Already logged out."},
+                status=200,
+            )
         
 
 
