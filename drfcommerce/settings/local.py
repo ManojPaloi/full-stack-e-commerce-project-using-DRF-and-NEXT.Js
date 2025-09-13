@@ -18,6 +18,5 @@ SECURE_HSTS_SECONDS = 0
 
 # Read ALLOWED_HOSTS from .env
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-
 # Optional: Allow all origins for local dev
 CORS_ALLOW_ALL_ORIGINS = True
