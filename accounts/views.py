@@ -130,6 +130,10 @@ class RegisterView(generics.GenericAPIView):
 
 
 
+
+# -------------------------
+# Login View (Cookie JWT)
+# -------------------------
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -139,71 +143,87 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]
-
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
-        return Response(
-            {
-                "status": "success",
-                "message": "Login successful 🎉",
-                "access": access_token,
-                "refresh": str(refresh),
-                "user": UserSerializer(user, context={"request": request}).data
-            },
-            status=200
+        response = Response({
+            "status": "success",
+            "message": "Login successful 🎉",
+            "access": access_token,
+            "user": UserSerializer(user, context={"request": request}).data
+        }, status=200)
+
+        # Set HttpOnly cookie for refresh token
+        response.set_cookie(
+            key="refresh",
+            value=str(refresh),
+            httponly=True,
+            secure=False,  # True in production
+            samesite="Lax",
+            max_age=24*60*60  # 1 day
         )
-        
-        
-# ------------------------
-# Logout View
-# ------------------------
+        return response
+
+# -------------------------
+# Refresh Access Token View
+# -------------------------
+class CookieTokenRefreshView(TokenRefreshView):
+    """
+    Refresh access token using HttpOnly refresh token stored in cookie.
+    """
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get("refresh")
+        if not refresh_token:
+            return Response({"detail": "Refresh token not found in cookies."},
+                            status=status.HTTP_401_UNAUTHORIZED)
+        serializer = self.get_serializer(data={"refresh": refresh_token})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except InvalidToken:
+            return Response({"detail": "Invalid refresh token."},
+                            status=status.HTTP_401_UNAUTHORIZED)
+
+        # Optionally rotate refresh token
+        response = Response(serializer.validated_data, status=status.HTTP_200_OK)
+        response.set_cookie(
+            key="refresh",
+            value=serializer.validated_data.get("refresh", refresh_token),
+            httponly=True,
+            secure=False,  # True in production
+            samesite="Lax",
+            max_age=24*60*60
+        )
+        return response
+
+# -------------------------
+# Logout View (Cookie JWT)
+# -------------------------
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        refresh_token = request.data.get("refresh")
-        if not refresh_token:
-            return Response(
-                {"status": "error", "message": "Refresh token required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        refresh_token = request.COOKIES.get("refresh")
+        response = Response({"status": "success", "message": "Logged out successfully."})
 
-        try:
-            # Blacklist refresh token
-            token = RefreshToken(refresh_token)
-            token.blacklist()
+        # Remove cookie
+        response.delete_cookie("refresh")
 
-            # Blacklist current access token too
-            access_token = request.auth
-            if access_token:
-                jti = access_token.get("jti")
-                if jti:
-                    BlacklistedAccessToken.objects.get_or_create(jti=jti)
+        # Blacklist token
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception:
+                pass
 
-            return Response(
-                {"status": "success", "message": "Logged out successfully."},
-                status=status.HTTP_200_OK,
-            )
-        except Exception:
-            return Response(
-                {"status": "success", "message": "Already logged out."},
-                status=status.HTTP_200_OK,
-            )
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+        # Optionally blacklist access token too
+        access_token = request.auth
+        if access_token:
+            jti = access_token.get("jti")
+            if jti:
+                BlacklistedAccessToken.objects.get_or_create(jti=jti)
 
-
-
+        return response
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
