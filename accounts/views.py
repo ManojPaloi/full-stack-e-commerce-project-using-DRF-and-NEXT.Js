@@ -171,14 +171,14 @@ class CookieTokenRefreshView(TokenRefreshView):
     """
     Refresh access token using HttpOnly refresh token stored in cookie.
     """
-    def get_serializer(self, *args, **kwargs):
-        data = kwargs.get("data")
-        if not data or "refresh" not in data:
-            refresh_token = self.request.COOKIES.get("refresh")
-            kwargs["data"] = {"refresh": refresh_token} if refresh_token else {}
-        return super().get_serializer(*args, **kwargs)
 
     def post(self, request, *args, **kwargs):
+        # Inject refresh token from cookie if not provided
+        refresh_token = request.COOKIES.get("refresh")
+        if not request.data.get("refresh") and refresh_token:
+            request.data._mutable = True if hasattr(request.data, '_mutable') else True
+            request.data["refresh"] = refresh_token
+
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
@@ -190,7 +190,7 @@ class CookieTokenRefreshView(TokenRefreshView):
             "access": serializer.validated_data["access"]
         }, status=status.HTTP_200_OK)
 
-        # Rotate refresh token if present
+        # Rotate refresh token cookie if returned
         if "refresh" in serializer.validated_data:
             response.set_cookie(
                 key="refresh",
@@ -200,7 +200,6 @@ class CookieTokenRefreshView(TokenRefreshView):
                 samesite="Lax",
                 max_age=24*60*60
             )
-
         return response
 
 # -------------------------
