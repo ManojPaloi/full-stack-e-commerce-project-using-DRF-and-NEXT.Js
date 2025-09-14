@@ -219,10 +219,18 @@ SIMPLE_JWT = {
 # -------------------------------------------------------------------
 # CORS
 # -------------------------------------------------------------------
-CORS_ALLOWED_ORIGINS = os.getenv(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,https://mern-ecommerce-woad-three.vercel.app"
-).split(",")
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://mern-ecommerce-woad-three.vercel.app",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://mern-ecommerce-woad-three.vercel.app",
+    "https://e-commerce-api-a5il.onrender.com",  # ✅ Your backend domain on Render
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 CORS_ALLOW_METHODS = [
     "GET",
@@ -233,11 +241,11 @@ CORS_ALLOW_METHODS = [
     "OPTIONS",
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://mern-ecommerce-woad-three.vercel.app",
-    "https://your-backend.onrender.com",
-    "http://localhost:5173",  # 👈 Add this for CSRF protection in dev
-]
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://mern-ecommerce-woad-three.vercel.app",
+#     "https://your-backend.onrender.com",
+#     "http://localhost:5173",  # 👈 Add this for CSRF protection in dev
+# ]
 
 # -------------------------------------------------------------------
 # Email (for OTP / Forgot Password)
