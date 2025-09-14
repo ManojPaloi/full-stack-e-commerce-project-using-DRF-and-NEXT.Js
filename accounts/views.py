@@ -224,7 +224,6 @@ class UserListView(generics.ListAPIView):
 # OTP Views
 # ------------------------
 class VerifyOTPView(APIView):
-    """Verify OTP, activate user account, and auto-login new user."""
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -232,44 +231,39 @@ class VerifyOTPView(APIView):
         code = request.data.get("otp")
 
         if not email or not code:
-            return Response(
-                {"status": "error", "message": "Email and OTP are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "error", "message": "Email and OTP are required."}, status=400)
 
-        # ✅ Check if any OTP exists for the email first
         otp_qs = EmailOTP.objects.filter(email=email, purpose="registration", is_used=False)
         if not otp_qs.exists():
-            return Response(
-                {"status": "error", "message": "No OTP found or OTP already used."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "error", "message": "No OTP found or OTP already used."}, status=400)
 
         try:
             otp_obj = otp_qs.filter(code=code).latest("created_at")
         except EmailOTP.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "Invalid OTP. Please check and try again."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "error", "message": "Invalid OTP."}, status=400)
 
         if otp_obj.is_expired():
-            return Response(
-                {"status": "error", "message": "OTP expired. Request a new one."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "error", "message": "OTP expired."}, status=400)
 
         # Mark OTP as used
         otp_obj.is_used = True
         otp_obj.save()
 
-        # Activate user
-        user = otp_obj.user
-        if not user:
-            return Response({"status": "error", "message": "User not found for this OTP."}, status=404)
+        pending_user = getattr(otp_obj, "pending_user", None)
+        if not pending_user:
+            return Response({"status": "error", "message": "Pending user not found."}, status=404)
 
+        # Create actual user in database
+        user = CustomUser.objects.create_user(
+            email=pending_user.email,
+            username=pending_user.username,
+            password=pending_user.password,  # hashed if using serializer
+        )
         user.is_active = True
         user.save()
+
+        # Delete pending user
+        pending_user.delete()
 
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
@@ -280,15 +274,12 @@ class VerifyOTPView(APIView):
                 "status": "success",
                 "title": "OTP Verified ✅",
                 "message": "Account verified and logged in successfully.",
-                "next_step": "You are now logged in and can access your account.",
-                "email": user.email,
                 "access": access_token,
                 "refresh": str(refresh),
-                "user": UserSerializer(user, context={"request": request}).data,
+                "user": UserSerializer(user).data,
             },
             status=200,
         )
-
 
 
 class ResendOTPView(APIView):
