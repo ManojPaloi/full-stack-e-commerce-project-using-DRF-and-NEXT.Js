@@ -21,8 +21,7 @@ ALLOWED_HOSTS = os.getenv(
 # Installed apps
 # -------------------------------------------------------------------
 INSTALLED_APPS = [
-    # "grappelli",
-    "jazzmin", 
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -32,26 +31,22 @@ INSTALLED_APPS = [
 
     # Local apps
     "accounts",
-    "category", 
+    "category",
     "banner",
     "products",
-
 
     # Third-party
     "rest_framework",
     "django_filters",
     "rest_framework_simplejwt",
     "corsheaders",
-    # 'rest_framework_simplejwt.token_blacklist',
-    
- 
 ]
 
 # -------------------------------------------------------------------
 # Middleware
 # -------------------------------------------------------------------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # ⚡ MUST BE FIRST
+    "corsheaders.middleware.CorsMiddleware",  # ⚡ MUST be FIRST
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -61,35 +56,16 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-
-
-
-# Allow all origins for dev (simplest)
-CORS_ALLOW_ALL_ORIGINS = True
-
-# Optional: specify origins explicitly (only if ALL_ORIGINS=False)
+# -------------------------------------------------------------------
+# CORS Settings
+# -------------------------------------------------------------------
+CORS_ALLOW_CREDENTIALS = True  # ✅ important for HttpOnly cookies
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
 ]
 
-
-
-
-
-# CORS_ALLOW_ALL_ORIGINS = True  # optional, currently set
-
-CORS_ALLOW_METHODS = [
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-    "OPTIONS",
-]
-
-
+CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
@@ -102,14 +78,10 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
-
-
-
-
-
-
-
-
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 # -------------------------------------------------------------------
 # URL / WSGI
@@ -183,80 +155,43 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
-
-
+# -------------------------------------------------------------------
+# REST Framework
+# -------------------------------------------------------------------
 REST_FRAMEWORK = {
-    # 🔑 Authentication backends
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "accounts.authentication.CustomJWTAuthentication",  # ✅ Custom JWT blocklist
+        "accounts.authentication.CustomJWTAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
-
-    # 🔒 Default permissions
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # ✅ Safer default for development
+        "rest_framework.permissions.AllowAny",
     ],
-
-    # 🖼 Renderers for API responses
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
-
-    # 🔍 Filtering support (required for django-filter)
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend"
     ],
 }
 
-
-
-
-
-
 # -------------------------------------------------------------------
 # JWT Settings
 # -------------------------------------------------------------------
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),  # short-lived access token
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),   # long-lived refresh token
-    "ROTATE_REFRESH_TOKENS": True,                # rotate refresh tokens automatically
-    "BLACKLIST_AFTER_ROTATION": True,             # blacklist old refresh tokens
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_COOKIE": "refresh_token",           # cookie name
+    "AUTH_COOKIE_HTTP_ONLY": True,            # HttpOnly
+    "AUTH_COOKIE_SECURE": not DEBUG,          # True on production (HTTPS)
+    "AUTH_COOKIE_SAMESITE": "Lax",            # "Strict" in prod if needed
 }
-
-
-
-# -------------------------------------------------------------------
-# CORS
-# -------------------------------------------------------------------
-# CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:5173",
-#     "http://127.0.0.1:3000",
-# ]
-
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
-]
-
-
-
-CORS_ALLOW_METHODS = [
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-    "OPTIONS",
-]
-
 
 # -------------------------------------------------------------------
 # Email (for OTP / Forgot Password)
@@ -268,85 +203,3 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
-
-
-
-
-# -------------------------------------------------------------------
-# Jazzmin Admin Theme (Enhanced)
-# -------------------------------------------------------------------
-JAZZMIN_SETTINGS = {
-    "site_title": "MyStore Admin",
-    "site_header": "MyStore Dashboard",
-    "site_brand": "MyStore",
-    "welcome_sign": "Welcome back 👋",
-    "copyright": "MyStore © 2025",
-
-    # Logos
-    "site_logo": "images/logo.png",
-    "login_logo": "images/logo.png",
-    "login_logo_dark": "images/logo.png",  # fallback for dark mode
-
-    # Search models
-    "search_model": ["accounts.CustomUser", "category.Category", "main.Product"],
-
-    # Top menu
-    "topmenu_links": [
-        {"name": "Dashboard", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"app": "accounts"},
-        {"app": "category"},
-        {"app": "main"},
-        {"name": "Website", "url": "https://mystore.com", "new_window": True},
-    ],
-
-    # Sidebar
-    "show_sidebar": True,
-    "navigation_expanded": True,
-
-    # Hide clutter
-    "hide_models": [
-        "rest_framework_simplejwt.token_blacklist.BlacklistedToken",
-        "rest_framework_simplejwt.token_blacklist.OutstandingToken",
-        "auth.Group",
-        "auth.Permission",
-    ],
-
-    # Custom icons
-    "icons": {
-        "accounts.CustomUser": "fas fa-user-circle",
-        "accounts.EmailOTP": "fas fa-envelope",
-        "category.Category": "fas fa-tags",
-        "main.Product": "fas fa-box-open",
-        "main.Order": "fas fa-shopping-cart",
-    },
-
-    # Ordering
-    "order_with_respect_to": ["accounts", "category", "main"],
-
-    # Custom assets
-    "custom_css": "css/custom_admin.css",
-    "custom_js": "js/custom_admin.js",
-}
-
-# -------------------------------------------------------------------
-# Jazzmin UI Tweaks (Responsive + Modern Look)
-# -------------------------------------------------------------------
-JAZZMIN_UI_TWEAKS = {
-    "theme": "darkly",                     # Base theme
-    "dark_mode_theme": "cyborg",           # Extra dark mode option
-    "navbar": "navbar-dark bg-gradient-primary",  
-    "sidebar": "sidebar-dark-primary elevation-4",
-    "brand_colour": "navbar-primary",
-    "accent": "accent-info",
-    "button_classes": {
-        "primary": "btn btn-primary btn-lg rounded-pill shadow",
-        "secondary": "btn btn-outline-secondary rounded-pill",
-    },
-    "sidebar_nav_small_text": True,
-    "sidebar_disable_expand": False,
-    "footer_fixed": True,
-    "navbar_fixed": True,
-    "layout_boxed": False,
-    "actions_sticky_top": True,
-    "show_ui_builder": False,
-}
