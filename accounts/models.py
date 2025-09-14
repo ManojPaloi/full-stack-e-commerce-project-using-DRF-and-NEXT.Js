@@ -86,30 +86,8 @@ class PendingUser(models.Model):
         return f"PendingUser: {self.email}"
 
 
-# -------------------------------------------------------------------
-# User Manager
-# -------------------------------------------------------------------
-
 class CustomUserManager(BaseUserManager):
-    """
-    Manager for the CustomUser model.
-    Handles creation of normal users and superusers.
-    """
-
     def create_user(self, email, password=None, first_name=None, mobile_no=None, **extra_fields):
-        """
-        Create and return a new user.
-
-        Args:
-            email (str): Email address (unique identifier)
-            password (str, optional): Raw password (hashed internally)
-            first_name (str, optional): First name of the user
-            mobile_no (str, optional): Mobile number
-            extra_fields (dict): Any additional fields
-
-        Returns:
-            CustomUser: Newly created user instance
-        """
         if not email:
             raise ValueError("The Email field is required.")
         email = self.normalize_email(email)
@@ -128,22 +106,17 @@ class CustomUserManager(BaseUserManager):
             **extra_fields,
         )
         user.set_password(password)
-        user.is_active = False  # Inactive until OTP verification
+
+        # ✅ Don’t force False if is_active was set by create_superuser
+        if extra_fields.get("is_active") is None:
+            user.is_active = False
+        else:
+            user.is_active = extra_fields.get("is_active")
+
         user.save(using=self._db)
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
-        """
-        Create and return a new superuser.
-
-        Args:
-            email (str): Superuser email
-            password (str): Raw password
-            extra_fields (dict): Additional fields
-
-        Returns:
-            CustomUser: Newly created superuser
-        """
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
