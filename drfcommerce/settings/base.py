@@ -51,7 +51,7 @@ INSTALLED_APPS = [
 # Middleware
 # -------------------------------------------------------------------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  
+    "corsheaders.middleware.CorsMiddleware",  # ⚡ MUST BE FIRST
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -64,17 +64,29 @@ MIDDLEWARE = [
 
 
 
+# Allow all origins for dev (simplest)
+CORS_ALLOW_ALL_ORIGINS = True
+
+# Optional: specify origins explicitly (only if ALL_ORIGINS=False)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+]
+
+
+
 
 # CORS_ALLOW_ALL_ORIGINS = True  # optional, currently set
 
 CORS_ALLOW_METHODS = [
-    "DELETE",
     "GET",
-    "OPTIONS",
-    "PATCH",
     "POST",
     "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
 ]
+
 
 CORS_ALLOW_HEADERS = [
     "accept",
@@ -87,6 +99,7 @@ CORS_ALLOW_HEADERS = [
     "x-csrftoken",
     "x-requested-with",
 ]
+
 
 
 
@@ -218,18 +231,19 @@ SIMPLE_JWT = {
 # -------------------------------------------------------------------
 # CORS
 # -------------------------------------------------------------------
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:3000",
-]
+# CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",
+#     "http://127.0.0.1:3000",
+# ]
 
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://e-commerce-api-a5il.onrender.com",  # ✅ Your backend domain on Render
     "http://localhost:5173",
     "http://127.0.0.1:3000",
+    "https://e-commerce-api-a5il.onrender.com",  # your deployed API
 ]
+
 
 CORS_ALLOW_METHODS = [
     "GET",
@@ -240,11 +254,6 @@ CORS_ALLOW_METHODS = [
     "OPTIONS",
 ]
 
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://mern-ecommerce-woad-three.vercel.app",
-#     "https://your-backend.onrender.com",
-#     "http://localhost:5173",  # 👈 Add this for CSRF protection in dev
-# ]
 
 # -------------------------------------------------------------------
 # Email (for OTP / Forgot Password)
