@@ -171,11 +171,9 @@ class CookieTokenRefreshView(TokenRefreshView):
     """
     Refresh access token using HttpOnly refresh token stored in cookie.
     """
-
     def get_serializer(self, *args, **kwargs):
         data = kwargs.get("data")
-        if data is None or "refresh" not in data:
-            # Inject refresh token from cookie
+        if not data or "refresh" not in data:
             refresh_token = self.request.COOKIES.get("refresh")
             kwargs["data"] = {"refresh": refresh_token} if refresh_token else {}
         return super().get_serializer(*args, **kwargs)
@@ -188,16 +186,21 @@ class CookieTokenRefreshView(TokenRefreshView):
             return Response({"detail": "Invalid or missing refresh token."},
                             status=status.HTTP_401_UNAUTHORIZED)
 
-        # Rotate refresh token cookie if configured
-        response = Response(serializer.validated_data, status=status.HTTP_200_OK)
-        response.set_cookie(
-            key="refresh",
-            value=serializer.validated_data.get("refresh", request.COOKIES.get("refresh")),
-            httponly=True,
-            secure=False,  # True in production
-            samesite="Lax",
-            max_age=24*60*60
-        )
+        response = Response({
+            "access": serializer.validated_data["access"]
+        }, status=status.HTTP_200_OK)
+
+        # Rotate refresh token if present
+        if "refresh" in serializer.validated_data:
+            response.set_cookie(
+                key="refresh",
+                value=serializer.validated_data["refresh"],
+                httponly=True,
+                secure=False,  # True in production
+                samesite="Lax",
+                max_age=24*60*60
+            )
+
         return response
 
 # -------------------------
