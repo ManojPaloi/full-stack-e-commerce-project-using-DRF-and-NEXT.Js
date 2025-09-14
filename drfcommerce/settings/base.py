@@ -41,8 +41,9 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "rest_framework_simplejwt",
-    # 'rest_framework_simplejwt.token_blacklist',
     "corsheaders",
+    # 'rest_framework_simplejwt.token_blacklist',
+    
  
 ]
 
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
 # Middleware
 # -------------------------------------------------------------------
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",  
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # must be high
@@ -234,6 +236,7 @@ CORS_ALLOW_METHODS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://mern-ecommerce-woad-three.vercel.app",
     "https://your-backend.onrender.com",
+    "http://localhost:5173",  # 👈 Add this for CSRF protection in dev
 ]
 
 # -------------------------------------------------------------------
