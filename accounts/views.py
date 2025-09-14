@@ -170,29 +170,6 @@ class LogoutView(APIView):
             
             
             
-class CustomTokenRefreshView(TokenRefreshView):
-    """
-    Returns both a new access token AND a new refresh token
-    when ROTATE_REFRESH_TOKENS=True, so frontend can replace old tokens.
-    """
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-
-        try:
-            serializer.is_valid(raise_exception=True)
-        except TokenError as e:
-            raise InvalidToken(e.args[0])
-
-        data = serializer.validated_data
-
-        return Response({
-            "status": "success",
-            "access": data.get("access"),
-            "refresh": data.get("refresh", request.data.get("refresh")),  # return new refresh if rotated
-        }, status=status.HTTP_200_OK)
-            
-            
-            
             
             
             
