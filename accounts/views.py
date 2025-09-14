@@ -67,6 +67,8 @@ def send_otp_email(email, otp_code, purpose="verification", user_name=None):
 # ------------------------
 # Authentication & User Management
 # ------------------------
+from django.db import IntegrityError
+
 class RegisterView(generics.GenericAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
@@ -75,15 +77,35 @@ class RegisterView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Save user data temporarily
-        pending_user = PendingUser.objects.create(
-            email=serializer.validated_data["email"],
-            password=serializer.validated_data["password"],  # Hash later during OTP verification
-            first_name=serializer.validated_data.get("first_name", ""),
-            last_name=serializer.validated_data.get("last_name", ""),
-            mobile_no=serializer.validated_data.get("mobile_no", ""),
-            profile_pic=request.FILES.get("profile_pic")
-        )
+        try:
+            # Try to save user data temporarily in PendingUser
+            pending_user = PendingUser.objects.create(
+                email=serializer.validated_data["email"],
+                password=serializer.validated_data["password"],  # Hash later after OTP verification
+                first_name=serializer.validated_data.get("first_name", ""),
+                last_name=serializer.validated_data.get("last_name", ""),
+                mobile_no=serializer.validated_data.get("mobile_no", ""),
+                profile_pic=request.FILES.get("profile_pic"),
+            )
+        except IntegrityError as e:
+            # Handle duplicate or unique constraint violations
+            return Response(
+                {
+                    "status": "error",
+                    "message": f"Could not create pending user: {str(e)}. "
+                               f"If you already registered with this email, please complete OTP verification or use a different email.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            # Catch all other unexpected errors gracefully
+            return Response(
+                {
+                    "status": "error",
+                    "message": f"An unexpected error occurred during registration: {str(e)}",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         # Generate OTP for this pending user
         otp = EmailOTP.objects.create(
@@ -93,16 +115,18 @@ class RegisterView(generics.GenericAPIView):
             expires_at=timezone.now() + timezone.timedelta(minutes=10),
         )
 
+        # Send OTP email
         send_otp_email(pending_user.email, otp.code, "verification")
 
         return Response(
             {
                 "status": "success",
-                "message": "OTP sent. Verify your email to complete registration.",
+                "message": "OTP sent successfully. Please verify your email to complete registration.",
                 "email": pending_user.email,
             },
             status=status.HTTP_201_CREATED,
         )
+
 
 
 
@@ -226,46 +250,88 @@ class UserListView(generics.ListAPIView):
 # OTP Views
 # ------------------------
 class VerifyOTPView(APIView):
+    """Verify OTP, create real user from PendingUser, activate, and log in."""
     permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         email = request.data.get("email")
         code = request.data.get("otp")
 
         if not email or not code:
-            return Response({"error": "Email and OTP required."}, status=400)
+            return Response(
+                {"status": "error", "message": "Email and OTP are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
+        # Find OTP for this email
         try:
-            otp = EmailOTP.objects.get(email=email, code=code, purpose="registration")
+            otp_obj = EmailOTP.objects.filter(
+                email=email, code=code, purpose="registration", is_used=False
+            ).latest("created_at")
         except EmailOTP.DoesNotExist:
-            return Response({"error": "Invalid OTP."}, status=400)
+            return Response(
+                {"status": "error", "message": "Invalid or expired OTP."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-        if otp.expires_at < timezone.now():
-            return Response({"error": "OTP expired."}, status=400)
+        # Check expiration
+        if otp_obj.is_expired():
+            return Response(
+                {"status": "error", "message": "OTP expired. Request a new one."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # Create actual user
-        pending_user = PendingUser.objects.get(email=email)
+        # Mark OTP as used
+        otp_obj.is_used = True
+        otp_obj.save()
+
+        # Get PendingUser
+        try:
+            pending = PendingUser.objects.get(email=email)
+        except PendingUser.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "No pending registration found for this email."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Create actual CustomUser
         user = CustomUser.objects.create_user(
-            email=pending_user.email,
-            password=pending_user.password,
-            first_name=pending_user.first_name,
-            last_name=pending_user.last_name,
-            mobile_no=pending_user.mobile_no,
-            profile_pic=pending_user.profile_pic
+            email=pending.email,
+            password=pending.password,  # already plain text, will be hashed by create_user
+            first_name=pending.first_name,
+            last_name=pending.last_name,
+            mobile_no=pending.mobile_no,
+            profile_pic=pending.profile_pic,
+            is_active=True,
         )
 
-        pending_user.delete()  # Remove pending record
-        otp.delete()  # Remove OTP
+        # Clean up PendingUser
+        pending.delete()
 
-        return Response({"status": "success", "message": "Registration complete."})
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        access = str(refresh.access_token)
+
+        return Response(
+            {
+                "status": "success",
+                "title": "OTP Verified ✅",
+                "message": "Account verified and logged in successfully.",
+                "email": user.email,
+                "access": access,
+                "refresh": str(refresh),
+                "user": UserSerializer(user, context={"request": request}).data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 
 
 class ResendOTPView(APIView):
-    """Resend OTP for users who are not yet verified."""
+    """Resend OTP for users who are not yet verified or pending registration."""
     permission_classes = [AllowAny]
-    COOLDOWN_SECONDS = 60  # 1 minute cooldown to prevent spamming
+    COOLDOWN_SECONDS = 60  # 1 minute cooldown
 
     def post(self, request):
         email = request.data.get("email")
@@ -275,24 +341,29 @@ class ResendOTPView(APIView):
                 status=400,
             )
 
-        # Check if user exists
+        # ✅ First check CustomUser
         try:
             user = User.objects.get(email=email)
+            if user.is_active:
+                return Response(
+                    {"status": "info", "message": "Your account is already verified. Please log in."},
+                    status=200,
+                )
+            # If found but inactive, use its email for OTP
+            target_email = user.email
         except User.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "No account found with this email."},
-                status=404,
-            )
+            # ✅ If not found, check PendingUser
+            try:
+                pending = PendingUser.objects.get(email=email)
+                target_email = pending.email
+            except PendingUser.DoesNotExist:
+                return Response(
+                    {"status": "error", "message": "No pending or existing account found with this email."},
+                    status=404,
+                )
 
-        # If already active, no need to resend OTP
-        if user.is_active:
-            return Response(
-                {"status": "info", "message": "Your account is already verified. Please log in."},
-                status=200,
-            )
-
-        # Check cooldown to prevent multiple OTPs in quick succession
-        last_otp = EmailOTP.objects.filter(email=email, purpose="registration").order_by("-created_at").first()
+        # Cooldown check
+        last_otp = EmailOTP.objects.filter(email=target_email, purpose="registration").order_by("-created_at").first()
         if last_otp and (timezone.now() - last_otp.created_at).total_seconds() < self.COOLDOWN_SECONDS:
             wait_time = int(self.COOLDOWN_SECONDS - (timezone.now() - last_otp.created_at).total_seconds())
             return Response(
@@ -300,21 +371,19 @@ class ResendOTPView(APIView):
                 status=429,
             )
 
-        # Delete old OTPs for this email
-        EmailOTP.objects.filter(email=email, purpose="registration").delete()
+        # Delete old OTPs
+        EmailOTP.objects.filter(email=target_email, purpose="registration").delete()
 
-        # Generate and save a new OTP
+        # Generate new OTP
         otp_code = generate_otp()
-        otp = EmailOTP.objects.create(
-            user=user,
-            email=email,
+        EmailOTP.objects.create(
+            email=target_email,
             code=otp_code,
             purpose="registration",
             expires_at=timezone.now() + timezone.timedelta(minutes=10),
         )
 
-        # Send OTP via email
-        send_otp_email(email, otp_code, "verification")
+        send_otp_email(target_email, otp_code, "verification")
 
         return Response(
             {
@@ -322,10 +391,11 @@ class ResendOTPView(APIView):
                 "title": "New OTP Sent 🔁",
                 "message": "A new OTP has been sent to your email.",
                 "next_step": "Check your inbox or spam folder for the OTP.",
-                "email": email,
+                "email": target_email,
             },
             status=200,
         )
+
 
 
 # ------------------------
