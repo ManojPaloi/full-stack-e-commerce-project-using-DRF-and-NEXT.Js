@@ -4,24 +4,26 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 # -------------------------------------------------------------------
-# Load environment variables
+# ✅ Load environment variables (from .env file for secrets)
 # -------------------------------------------------------------------
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
-DEBUG = os.getenv("DEBUG", "True") == "True"
+SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")  # Secret key for Django
+DEBUG = os.getenv("DEBUG", "True") == "True"  # Toggle debugging for development
 
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS", "localhost,127.0.0.1"
-).split(",")
+# Hosts allowed to serve the app
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # -------------------------------------------------------------------
-# Installed apps
+# ✅ Installed Apps
 # -------------------------------------------------------------------
 INSTALLED_APPS = [
+    # Admin UI customization
     "jazzmin",
+
+    # Django built-in apps
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -29,58 +31,51 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    # Local apps
+    # Local apps (your project modules)
     "accounts",
     "category",
     "banner",
     "products",
 
-    # Third-party
-    "rest_framework",
-    "django_filters",
-    "rest_framework_simplejwt",
-    "corsheaders",
+    # Third-party apps
+    "rest_framework",           # Django REST Framework
+    "django_filters",           # Filtering support for DRF
+    "rest_framework_simplejwt", # JWT authentication
+    "corsheaders",              # CORS support for cross-origin requests
 ]
 
 # -------------------------------------------------------------------
-# Middleware
+# ✅ Middleware
 # -------------------------------------------------------------------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # ⚡ MUST be FIRST
+    "corsheaders.middleware.CorsMiddleware",  # ⚡ Must come first for CORS
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",  # CSRF protection for POST requests
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 # -------------------------------------------------------------------
-# CORS Settings
+# 🌐 CORS Settings for Frontend <-> Backend Communication
 # -------------------------------------------------------------------
-CORS_ALLOW_CREDENTIALS = True  # ✅ important for HttpOnly cookies
+CORS_ALLOW_CREDENTIALS = True  # ✅ Required to send cookies with cross-site requests
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    "http://localhost:5173",    # Vite frontend dev server
     "http://127.0.0.1:5173",
-    "http://localhost:3000",
+    "http://localhost:3000",    # React/Next.js dev server
     "http://127.0.0.1:3000",
 ]
 
-
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
+    "accept", "accept-encoding", "authorization", "content-type",
+    "dnt", "origin", "user-agent", "x-csrftoken", "x-requested-with",
 ]
 
+# ✅ Trust frontend origins for CSRF cookies
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -88,16 +83,15 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-
 # -------------------------------------------------------------------
-# URL / WSGI
+# 📂 URL and WSGI
 # -------------------------------------------------------------------
 ROOT_URLCONF = "drfcommerce.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [],  # Add template directories here if needed
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -113,7 +107,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "drfcommerce.wsgi.application"
 
 # -------------------------------------------------------------------
-# Database
+# 🗄 Database (SQLite for dev, replace for production)
 # -------------------------------------------------------------------
 DATABASES = {
     "default": {
@@ -123,7 +117,7 @@ DATABASES = {
 }
 
 # -------------------------------------------------------------------
-# Password validation
+# 🔒 Password Validation
 # -------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -133,7 +127,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # -------------------------------------------------------------------
-# Internationalization
+# 🌍 Internationalization
 # -------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -141,7 +135,7 @@ USE_I18N = True
 USE_TZ = True
 
 # -------------------------------------------------------------------
-# Static & Media files
+# 🖼 Static & Media Files
 # -------------------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -152,23 +146,24 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # -------------------------------------------------------------------
-# Custom User Model
+# 👤 Custom User Model
 # -------------------------------------------------------------------
 AUTH_USER_MODEL = "accounts.CustomUser"
 
+# Allow login with either email or username
 AUTHENTICATION_BACKENDS = [
     "accounts.backends.EmailOrUsernameModelBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
 # -------------------------------------------------------------------
-# REST Framework
+# 🔗 Django REST Framework Config
 # -------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "accounts.authentication.CustomJWTAuthentication",
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
+        "accounts.authentication.CustomJWTAuthentication",    # Your custom JWT auth
+        "rest_framework_simplejwt.authentication.JWTAuthentication", # DRF SimpleJWT
+        "rest_framework.authentication.SessionAuthentication",        # Browsable API
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
@@ -182,31 +177,32 @@ REST_FRAMEWORK = {
     ],
 }
 
-# --- JWT cookie settings (SimpleJWT) ---
+# -------------------------------------------------------------------
+# 🔑 SimpleJWT Configuration with Cookie Support
+# -------------------------------------------------------------------
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),  # Short-lived access tokens
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),    # Longer-lived refresh tokens
+    "ROTATE_REFRESH_TOKENS": True,                  # Issue a new refresh token on use
+    "BLACKLIST_AFTER_ROTATION": True,               # Blacklist old refresh tokens
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
 
-    # Cookie settings (we will read these in the views)
-    "AUTH_COOKIE": "refresh_token",         # cookie name used for refresh token
-    "AUTH_COOKIE_HTTP_ONLY": True,          # make cookie HttpOnly
-    "AUTH_COOKIE_SECURE": False,        # True on production (HTTPS)
-    "AUTH_COOKIE_SAMESITE": "None",          # adjust to 'None' if cross-site cookies required + secure
+    # Cookie settings for storing refresh tokens securely
+    "AUTH_COOKIE": "refresh_token",   # Name of the cookie
+    "AUTH_COOKIE_HTTP_ONLY": True,    # Prevent JavaScript access
+    "AUTH_COOKIE_SECURE": False,      # ✅ Use True in production with HTTPS
+    "AUTH_COOKIE_SAMESITE": "None",   # Needed for cross-site cookies
 }
 
-
 # -------------------------------------------------------------------
-# Email (for OTP / Forgot Password)
+# 📧 Email Configuration (OTP / Password Reset)
 # -------------------------------------------------------------------
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")           # Your email address
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")   # App password or email password
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)

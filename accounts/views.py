@@ -1,79 +1,80 @@
+"""
+accounts/views.py
+==================
+This module implements:
+- User registration with OTP verification (pending user storage until OTP is confirmed)
+- Login with HttpOnly refresh cookie (SimpleJWT)
+- Cookie-based refresh token rotation
+- Logout (blacklisting refresh token + deleting cookie)
+- Profile view/update
+- Admin user listing
+- Password reset flow using OTP
+"""
+
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
-from .models import BlacklistedAccessToken
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-from rest_framework.response import Response
-from django.conf import settings
-from rest_framework import status
-
+from rest_framework_simplejwt.exceptions import InvalidToken
+from django.db import IntegrityError
 import random
 
+# Local imports
 from .models import CustomUser, EmailOTP, PendingUser
 from .serializers import (
     UserSerializer,
     RegisterSerializer,
     LoginSerializer,
     ProfileUpdateSerializer,
-    EmailOTPSerializer,
     PasswordResetSerializer,
 )
 
 User = get_user_model()
 
+# -------------------------------------------------------------------
+# Utility functions
+# -------------------------------------------------------------------
 
-# ------------------------
-# Utility Functions
-# ------------------------
-def generate_otp():
+def generate_otp() -> str:
     """Generate a random 6-digit OTP code."""
     return str(random.randint(100000, 999999))
 
-def send_otp_email(email, otp_code, purpose="verification", user_name=None):
+def send_otp_email(email: str, otp_code: str, purpose="verification", user_name=None):
     """
-    Send an OTP email to the user using both text and HTML templates.
+    Sends OTP via email with plain text and HTML versions.
     """
     subject = "Your OTP Code" if purpose == "verification" else "Password Reset OTP"
-
-    context = {
-        "otp_code": otp_code,
-        "user_name": user_name or "User",
-        "site_name": "Django Auth System",
-    }
+    context = {"otp_code": otp_code, "user_name": user_name or "User", "site_name": "Django Auth System"}
 
     text_content = render_to_string("emails/otp_email.txt", context)
     html_content = render_to_string("emails/otp_email.html", context)
 
-    email_message = EmailMultiAlternatives(
-        subject=subject,
-        body=text_content,
-        from_email=None,  # Uses DEFAULT_FROM_EMAIL from settings.py
-        to=[email],
-    )
+    email_message = EmailMultiAlternatives(subject, text_content, None, [email])
     email_message.attach_alternative(html_content, "text/html")
     email_message.send()
 
-# ------------------------
-# Registration (unchanged except IntegrityError handling)
-# ------------------------
+# -------------------------------------------------------------------
+# Registration
+# -------------------------------------------------------------------
+
 class RegisterView(generics.GenericAPIView):
+    """
+    Create a PendingUser and send OTP.
+    User is only saved to CustomUser after OTP verification.
+    """
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         try:
             pending_user = PendingUser.objects.create(
                 email=serializer.validated_data["email"],
@@ -85,13 +86,8 @@ class RegisterView(generics.GenericAPIView):
             )
         except IntegrityError as e:
             return Response(
-                {"status": "error", "message": f"Could not create pending user: {str(e)}. If you already registered with this email, please complete OTP verification or use a different email."},
+                {"status": "error", "message": f"Could not create pending user: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST,
-            )
-        except Exception as e:
-            return Response(
-                {"status": "error", "message": f"An unexpected error occurred during registration: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         otp = EmailOTP.objects.create(
@@ -103,28 +99,29 @@ class RegisterView(generics.GenericAPIView):
         send_otp_email(pending_user.email, otp.code, "verification")
 
         return Response(
-            {"status": "success", "message": "OTP sent successfully. Please verify your email to complete registration.", "email": pending_user.email},
+            {"status": "success", "message": "OTP sent successfully.", "email": pending_user.email},
             status=status.HTTP_201_CREATED,
         )
 
+# -------------------------------------------------------------------
+# Login
+# -------------------------------------------------------------------
+
 class LoginView(APIView):
     """
-    Authenticate the user, set the refresh token as an HttpOnly cookie,
-    and return the access token + user details in JSON.
+    Validate credentials, return access token in JSON,
+    and set refresh token as HttpOnly cookie.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Validate login data
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
 
-        # Create tokens
         refresh = RefreshToken.for_user(user)
         access = str(refresh.access_token)
 
-        # Build JSON response
         response = Response(
             {
                 "status": "success",
@@ -135,55 +132,51 @@ class LoginView(APIView):
             status=status.HTTP_200_OK,
         )
 
-        # Cookie settings
+        # Cookie configuration
         cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
         cookie_secure = settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", not settings.DEBUG)
         cookie_samesite = settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "Lax")
         cookie_max_age = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
 
-        # ✅ Set HttpOnly cookie for refresh token
+        # ✅ Set refresh token cookie
         response.set_cookie(
             key=cookie_name,
             value=str(refresh),
             httponly=True,
-            secure=cookie_secure,  # Use True in production with HTTPS
+            secure=cookie_secure,
             samesite=cookie_samesite,
             max_age=cookie_max_age,
-            path="/",  # Make cookie available site-wide
+            path="/",
         )
-
         return response
 
+# -------------------------------------------------------------------
+# Refresh Token (Cookie)
+# -------------------------------------------------------------------
 
-
-
-# -------------------------
-# Cookie Refresh View
-# -------------------------
 class CookieTokenRefreshView(TokenRefreshView):
+    """
+    Reads refresh token from HttpOnly cookie and returns a new access token.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get("refresh_token")
         if not refresh_token:
-            return Response({"detail": "No refresh token cookie found."}, status=400)
+            return Response({"detail": "No refresh token cookie found."}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = self.get_serializer(data={"refresh": refresh_token})
         serializer.is_valid(raise_exception=True)
-        return Response({"access": serializer.validated_data["access"]})
+        return Response({"access": serializer.validated_data["access"]}, status=status.HTTP_200_OK)
 
+# -------------------------------------------------------------------
+# Logout
+# -------------------------------------------------------------------
 
-
-
-
-
-
-
-
-
-# -------------------------
-# Logout (delete cookie + blacklist)
-# -------------------------
 class LogoutView(APIView):
+    """
+    Blacklist the refresh token and clear the cookie.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -199,41 +192,35 @@ class LogoutView(APIView):
         response.delete_cookie(cookie_name, path="/")
         return response
 
-
-
+# -------------------------------------------------------------------
+# Profile View / Update
+# -------------------------------------------------------------------
 
 class ProfileView(generics.RetrieveUpdateAPIView):
+    """
+    GET → Retrieve profile
+    PATCH/PUT → Update profile
+    """
     serializer_class = ProfileUpdateSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
         return self.request.user
 
-    # GET request
     def retrieve(self, request, *args, **kwargs):
         serializer = self.get_serializer(self.get_object())
-        return Response({
-            "status": "success",
-            "message": "Profile retrieved.",
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
 
-    # PATCH / PUT request
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', True)
-        serializer = self.get_serializer(
-            self.get_object(),
-            data=request.data,
-            partial=partial
-        )
+        partial = kwargs.pop("partial", True)
+        serializer = self.get_serializer(self.get_object(), data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({
-            "status": "success",
-            "message": "Profile updated successfully.",
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
 
+# -------------------------------------------------------------------
+# Admin-only: List Users
+# -------------------------------------------------------------------
 
 class UserListView(generics.ListAPIView):
     """Admin view to list all registered users."""
@@ -241,12 +228,14 @@ class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
 
+# -------------------------------------------------------------------
+# OTP Verification / Resend
+# -------------------------------------------------------------------
 
-# ------------------------
-# OTP Views
-# ------------------------
 class VerifyOTPView(APIView):
-    """Verify OTP, create real user from PendingUser, activate, and log in."""
+    """
+    Verify OTP → Create real CustomUser from PendingUser.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -254,151 +243,75 @@ class VerifyOTPView(APIView):
         code = request.data.get("otp")
 
         if not email or not code:
-            return Response(
-                {"status": "error", "message": "Email and OTP are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "error", "message": "Email and OTP are required."}, status=400)
 
-        # Find OTP for this email
         try:
-            otp_obj = EmailOTP.objects.filter(
-                email=email, code=code, purpose="registration", is_used=False
-            ).latest("created_at")
+            otp_obj = EmailOTP.objects.filter(email=email, code=code, purpose="registration", is_used=False).latest("created_at")
         except EmailOTP.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "Invalid or expired OTP."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({"status": "error", "message": "Invalid or expired OTP."}, status=404)
 
-        # Check expiration
         if otp_obj.is_expired():
-            return Response(
-                {"status": "error", "message": "OTP expired. Request a new one."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "error", "message": "OTP expired."}, status=400)
 
-        # Mark OTP as used
         otp_obj.is_used = True
         otp_obj.save()
 
-        # Get PendingUser
-        try:
-            pending = PendingUser.objects.get(email=email)
-        except PendingUser.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "No pending registration found for this email."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # Create actual CustomUser
+        pending = PendingUser.objects.get(email=email)
         user = CustomUser.objects.create_user(
             email=pending.email,
-            password=pending.password,  # already plain text, will be hashed by create_user
+            password=pending.password,
             first_name=pending.first_name,
             last_name=pending.last_name,
             mobile_no=pending.mobile_no,
             profile_pic=pending.profile_pic,
             is_active=True,
         )
-
-        # Clean up PendingUser
         pending.delete()
 
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
-        access = str(refresh.access_token)
-
         return Response(
             {
                 "status": "success",
-                "title": "OTP Verified ✅",
-                "message": "Account verified and logged in successfully.",
-                "email": user.email,
-                "access": access,
+                "access": str(refresh.access_token),
                 "refresh": str(refresh),
                 "user": UserSerializer(user, context={"request": request}).data,
-            },
-            status=status.HTTP_200_OK,
-        )
-
-
-
-
-class ResendOTPView(APIView):
-    """Resend OTP for users who are not yet verified or pending registration."""
-    permission_classes = [AllowAny]
-    COOLDOWN_SECONDS = 60  # 1 minute cooldown
-
-    def post(self, request):
-        email = request.data.get("email")
-        if not email:
-            return Response(
-                {"status": "error", "message": "Email is required."},
-                status=400,
-            )
-
-        # ✅ First check CustomUser
-        try:
-            user = User.objects.get(email=email)
-            if user.is_active:
-                return Response(
-                    {"status": "info", "message": "Your account is already verified. Please log in."},
-                    status=200,
-                )
-            # If found but inactive, use its email for OTP
-            target_email = user.email
-        except User.DoesNotExist:
-            # ✅ If not found, check PendingUser
-            try:
-                pending = PendingUser.objects.get(email=email)
-                target_email = pending.email
-            except PendingUser.DoesNotExist:
-                return Response(
-                    {"status": "error", "message": "No pending or existing account found with this email."},
-                    status=404,
-                )
-
-        # Cooldown check
-        last_otp = EmailOTP.objects.filter(email=target_email, purpose="registration").order_by("-created_at").first()
-        if last_otp and (timezone.now() - last_otp.created_at).total_seconds() < self.COOLDOWN_SECONDS:
-            wait_time = int(self.COOLDOWN_SECONDS - (timezone.now() - last_otp.created_at).total_seconds())
-            return Response(
-                {"status": "error", "message": f"Please wait {wait_time} seconds before requesting another OTP."},
-                status=429,
-            )
-
-        # Delete old OTPs
-        EmailOTP.objects.filter(email=target_email, purpose="registration").delete()
-
-        # Generate new OTP
-        otp_code = generate_otp()
-        EmailOTP.objects.create(
-            email=target_email,
-            code=otp_code,
-            purpose="registration",
-            expires_at=timezone.now() + timezone.timedelta(minutes=10),
-        )
-
-        send_otp_email(target_email, otp_code, "verification")
-
-        return Response(
-            {
-                "status": "success",
-                "title": "New OTP Sent 🔁",
-                "message": "A new OTP has been sent to your email.",
-                "next_step": "Check your inbox or spam folder for the OTP.",
-                "email": target_email,
             },
             status=200,
         )
 
+class ResendOTPView(APIView):
+    """
+    Resend OTP to pending or inactive accounts.
+    """
+    permission_classes = [AllowAny]
+    COOLDOWN_SECONDS = 60
 
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"status": "error", "message": "Email is required."}, status=400)
 
-# ------------------------
-# Password Reset Flow
-# ------------------------
+        # Check if OTP resend is allowed
+        last_otp = EmailOTP.objects.filter(email=email, purpose="registration").order_by("-created_at").first()
+        if last_otp and (timezone.now() - last_otp.created_at).total_seconds() < self.COOLDOWN_SECONDS:
+            wait = int(self.COOLDOWN_SECONDS - (timezone.now() - last_otp.created_at).total_seconds())
+            return Response({"status": "error", "message": f"Wait {wait}s before requesting another OTP."}, status=429)
+
+        EmailOTP.objects.filter(email=email, purpose="registration").delete()
+        otp_code = generate_otp()
+        EmailOTP.objects.create(
+            email=email, code=otp_code, purpose="registration",
+            expires_at=timezone.now() + timezone.timedelta(minutes=10)
+        )
+        send_otp_email(email, otp_code, "verification")
+        return Response({"status": "success", "message": "OTP resent."}, status=200)
+
+# -------------------------------------------------------------------
+# Password Reset Flow (Send → Verify → Reset)
+# -------------------------------------------------------------------
+
 class SendPasswordResetOTPView(APIView):
-    """Send OTP for password reset request."""
+    """Send OTP for password reset."""
     permission_classes = [AllowAny]
     COOLDOWN_SECONDS = 60
 
@@ -412,112 +325,45 @@ class SendPasswordResetOTPView(APIView):
         except CustomUser.DoesNotExist:
             return Response({"status": "error", "message": "User not found."}, status=404)
 
-        last_otp = EmailOTP.objects.filter(user=user, purpose="password_reset").order_by("-created_at").first()
-        if last_otp:
-            elapsed = (timezone.now() - last_otp.created_at).total_seconds()
-            if elapsed < self.COOLDOWN_SECONDS and request.data.get("force") != True:
-                return Response(
-                    {"status": "error", "message": f"Please wait {int(self.COOLDOWN_SECONDS - elapsed)} seconds before requesting another OTP."},
-                    status=429,
-                )
-
         otp_code = generate_otp()
-        otp = EmailOTP.objects.create(
-            user=user,
-            email=email,
-            code=otp_code,
-            purpose="password_reset",
-            expires_at=timezone.now() + timezone.timedelta(minutes=10),
+        EmailOTP.objects.create(
+            user=user, email=email, code=otp_code, purpose="password_reset",
+            expires_at=timezone.now() + timezone.timedelta(minutes=10)
         )
-
         send_otp_email(email, otp_code, "password_reset")
-
-        return Response({"status": "success",
-    "title": "Password Reset OTP Sent 📩",
-    "message": "An OTP has been sent to your email for password reset.",
-    "next_step": "Check your inbox or spam folder for the OTP.",
-    "email": "bilu@yopmail.com"},
-          status=200)
-
+        return Response({"status": "success", "message": "OTP sent."}, status=200)
 
 class VerifyPasswordResetOTPView(APIView):
-    """Verify OTP for password reset using only OTP and email."""
+    """Verify OTP for password reset."""
     permission_classes = [AllowAny]
 
     def post(self, request):
         email = request.data.get("email")
-        otp_code = request.data.get("otp")  # Only OTP
-
+        otp_code = request.data.get("otp")
         if not email or not otp_code:
-            return Response(
-                {"status": "error", "message": "Email and OTP are required."},
-                status=400,
-            )
+            return Response({"status": "error", "message": "Email and OTP required."}, status=400)
 
         try:
-            # Automatically filter for password_reset OTPs
-            otp_obj = EmailOTP.objects.filter(
-                email=email, code=otp_code, purpose="password_reset", is_used=False
-            ).latest("created_at")
+            otp_obj = EmailOTP.objects.filter(email=email, code=otp_code, purpose="password_reset", is_used=False).latest("created_at")
         except EmailOTP.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "Invalid or expired OTP."}, 
-                status=400
-            )
+            return Response({"status": "error", "message": "Invalid or expired OTP."}, status=400)
 
         if otp_obj.is_expired():
-            return Response(
-                {"status": "error", "message": "OTP expired. Request a new one."}, 
-                status=400
-            )
+            return Response({"status": "error", "message": "OTP expired."}, status=400)
 
-        # Mark OTP as used
         otp_obj.is_used = True
         otp_obj.save()
-
-        user = otp_obj.user
-        if not user:
-            return Response(
-                {"status": "error", "message": "No user associated with this OTP."}, 
-                status=404
-            )
-
-        return Response(
-            {
-                "status": "success",
-                "title": "OTP Verified ✅",
-                "message": "Your OTP has been successfully verified. You may now reset your password securely.",
-                "next_step": "Proceed to set a new password to regain access to your account.",
-                "email": user.email,
-            },
-            status=200,
-        )
-
+        return Response({"status": "success", "message": "OTP verified."}, status=200)
 
 class ResetPasswordView(APIView):
+    """Set a new password after OTP verification."""
     permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = PasswordResetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         user = serializer.validated_data["user"]
-        new_password = serializer.validated_data["new_password"]
-
-        user.set_password(new_password)
+        user.set_password(serializer.validated_data["new_password"])
         user.save()
-
-        # Remove all password-reset OTPs for security
         EmailOTP.objects.filter(email=user.email, purpose="password_reset").delete()
-
-        return Response(
-            {
-                "status": "success",
-                "title": "Password Reset Successful 🔑",
-                "message": "Your password has been updated successfully.",
-                "next_step": "You can now log in with your new password.",
-                "email": user.email,
-            },
-            status=status.HTTP_200_OK,
-        )
-
+        return Response({"status": "success", "message": "Password reset successful."}, status=200)
