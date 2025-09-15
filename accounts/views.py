@@ -162,16 +162,13 @@ class LoginView(APIView):
 # Cookie Refresh View
 # -------------------------
 class CookieTokenRefreshView(TokenRefreshView):
-    """
-    Refresh access token using HttpOnly refresh token stored in cookie.
-    """
 
     def post(self, request, *args, **kwargs):
-        # Get the refresh token from cookie
         refresh_token = request.COOKIES.get("refresh_token")
+        if not refresh_token:
+            return Response({"detail": "No refresh token cookie found."}, status=400)
 
-        # Build a proper dict for the serializer
-        data = {"refresh": refresh_token} if not request.data.get("refresh") else dict(request.data)
+        data = {"refresh": refresh_token}
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -184,8 +181,8 @@ class CookieTokenRefreshView(TokenRefreshView):
                 key="refresh_token",
                 value=serializer.validated_data["refresh"],
                 httponly=True,
-                secure=not settings.DEBUG,
-                samesite="None",
+                secure=False,  # False for local dev
+                samesite="Lax",
                 max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
                 path="/",
             )
@@ -195,11 +192,12 @@ class CookieTokenRefreshView(TokenRefreshView):
 
 
 
+
 # -------------------------
 # Logout (delete cookie + blacklist)
 # -------------------------
 class LogoutView(APIView):
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
