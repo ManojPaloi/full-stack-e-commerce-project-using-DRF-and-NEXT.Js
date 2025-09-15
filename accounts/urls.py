@@ -13,14 +13,17 @@ from .views import (
     SendPasswordResetOTPView,
     VerifyPasswordResetOTPView,
     ResetPasswordView,
-    CookieTokenRefreshView,  # ✅ Use custom refresh view
+    CookieTokenRefreshView,  # ✅ Custom refresh view
 )
 
-# ------------------------------
-# API Root Helper
-# ------------------------------
+# -------------------------------------------------------------------
+# 🌐 API Root Helper
+# -------------------------------------------------------------------
 @api_view(["GET"])
 def accounts_root(request, format=None):
+    """
+    Lists available endpoints for quick navigation and debugging.
+    """
     return Response({
         "register": request.build_absolute_uri("register/"),
         "otp": {
@@ -42,30 +45,30 @@ def accounts_root(request, format=None):
         },
     })
 
-# ------------------------------
-# URL Patterns
-# ------------------------------
+# -------------------------------------------------------------------
+# 🔗 URL Patterns
+# -------------------------------------------------------------------
 urlpatterns = [
-    # ✅ API root
+    # 🌐 API root
     path("", accounts_root, name="accounts-root"),
 
-    # ✅ Registration and OTP
+    # 📝 Registration & OTP
     path("register/", RegisterView.as_view(), name="register"),
     path("otp/verify/", VerifyOTPView.as_view(), name="verify_otp"),
     path("otp/resend/", ResendOTPView.as_view(), name="resend_otp"),
 
-    # ✅ Authentication
+    # 🔑 Authentication
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("profile/", ProfileView.as_view(), name="profile"),
     path("users/", UserListView.as_view(), name="users"),
 
-    # ✅ Password reset flow
+    # 🔐 Password Reset
     path("password/forgot/", SendPasswordResetOTPView.as_view(), name="forgot_password"),
     path("password/verify-otp/", VerifyPasswordResetOTPView.as_view(), name="verify_password_otp"),
     path("password/reset/", ResetPasswordView.as_view(), name="reset_password"),
 
-    # ✅ JWT token endpoints
+    # 🔄 JWT Token Endpoints
     path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("token/refresh/", CookieTokenRefreshView.as_view(), name="token_refresh"),  # 🔑 custom view
+    path("token/refresh/", CookieTokenRefreshView.as_view(), name="token_refresh"),
 ]
