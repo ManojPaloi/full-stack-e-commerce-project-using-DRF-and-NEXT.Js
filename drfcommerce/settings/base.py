@@ -182,9 +182,7 @@ REST_FRAMEWORK = {
     ],
 }
 
-# -------------------------------------------------------------------
-# JWT Settings
-# -------------------------------------------------------------------
+# --- JWT cookie settings (SimpleJWT) ---
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -193,11 +191,14 @@ SIMPLE_JWT = {
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
-    "AUTH_COOKIE": "refresh_token",           # cookie name
-    "AUTH_COOKIE_HTTP_ONLY": True,            # HttpOnly
-    "AUTH_COOKIE_SECURE": not DEBUG,          # True on production (HTTPS)
-    "AUTH_COOKIE_SAMESITE": "Lax",            # "Strict" in prod if needed
+
+    # Cookie settings (we will read these in the views)
+    "AUTH_COOKIE": "refresh_token",         # cookie name used for refresh token
+    "AUTH_COOKIE_HTTP_ONLY": True,          # make cookie HttpOnly
+    "AUTH_COOKIE_SECURE": not DEBUG,        # True on production (HTTPS)
+    "AUTH_COOKIE_SAMESITE": "Lax",          # adjust to 'None' if cross-site cookies required + secure
 }
+
 
 # -------------------------------------------------------------------
 # Email (for OTP / Forgot Password)
