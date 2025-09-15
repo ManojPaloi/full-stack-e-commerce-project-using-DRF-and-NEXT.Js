@@ -165,28 +165,33 @@ class CookieTokenRefreshView(TokenRefreshView):
     """
     Refresh access token using HttpOnly refresh token stored in cookie.
     """
+
     def post(self, request, *args, **kwargs):
+        # Get the refresh token from cookie
         refresh_token = request.COOKIES.get("refresh_token")
-        data = request.data.copy()
-        if not data.get("refresh") and refresh_token:
-            data["refresh"] = refresh_token
+
+        # Build a proper dict for the serializer
+        data = {"refresh": refresh_token} if not request.data.get("refresh") else dict(request.data)
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
 
         response = Response({"access": serializer.validated_data["access"]})
-        # Rotate refresh if provided by SimpleJWT
+
+        # Optionally rotate refresh token
         if "refresh" in serializer.validated_data:
             response.set_cookie(
                 key="refresh_token",
                 value=serializer.validated_data["refresh"],
                 httponly=True,
-                secure=True,
+                secure=not settings.DEBUG,
                 samesite="None",
                 max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
                 path="/",
             )
+
         return response
+
 
 
 
