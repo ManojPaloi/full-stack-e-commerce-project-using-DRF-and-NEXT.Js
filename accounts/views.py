@@ -233,52 +233,63 @@ class UserListView(generics.ListAPIView):
 # -------------------------------------------------------------------
 
 class VerifyOTPView(APIView):
-    """
-    Verify OTP → Create real CustomUser from PendingUser.
-    """
     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         email = request.data.get("email")
         code = request.data.get("otp")
 
         if not email or not code:
-            return Response({"status": "error", "message": "Email and OTP are required."}, status=400)
+            return Response({"detail": "Email and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        otp = EmailOTP.objects.filter(email=email, code=code, purpose="registration", is_used=False).first()
+        if not otp or otp.is_expired():
+            return Response({"detail": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark OTP as used
+        otp.mark_used()
+
+        # Move PendingUser → CustomUser
         try:
-            otp_obj = EmailOTP.objects.filter(email=email, code=code, purpose="registration", is_used=False).latest("created_at")
-        except EmailOTP.DoesNotExist:
-            return Response({"status": "error", "message": "Invalid or expired OTP."}, status=404)
+            pending = PendingUser.objects.get(email=email)
+        except PendingUser.DoesNotExist:
+            return Response({"detail": "Pending user not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if otp_obj.is_expired():
-            return Response({"status": "error", "message": "OTP expired."}, status=400)
-
-        otp_obj.is_used = True
-        otp_obj.save()
-
-        pending = PendingUser.objects.get(email=email)
         user = CustomUser.objects.create_user(
             email=pending.email,
             password=pending.password,
             first_name=pending.first_name,
-            last_name=pending.last_name,
             mobile_no=pending.mobile_no,
-            profile_pic=pending.profile_pic,
-            is_active=True,
+            is_active=True,  # ✅ Activate now
         )
+
+        # Delete PendingUser after migration
         pending.delete()
 
+        # Issue tokens
         refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "status": "success",
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": UserSerializer(user, context={"request": request}).data,
-            },
-            status=200,
-        )
+        access = refresh.access_token
 
+        response = Response({
+            "detail": "OTP verified successfully.",
+            "access": str(access),
+            "user": {"email": user.email, "username": user.username},
+        })
+        # Set refresh token cookie
+        response.set_cookie(
+            "refresh_token",
+            str(refresh),
+            httponly=True,
+            secure=True,       # Use HTTPS in production
+            samesite="None",   # For cross-site requests
+            max_age=7*24*60*60
+        )
+        return response
+    
+    
+    
+    
+    
 class ResendOTPView(APIView):
     """
     Resend OTP to pending or inactive accounts.

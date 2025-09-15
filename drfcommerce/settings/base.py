@@ -206,3 +206,35 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")           # Your email address
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")   # App password or email password
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+
+
+
+
+# -------------------------------------------------------------------
+# Jazzmin UI Tweaks (Responsive + Modern Look)
+# -------------------------------------------------------------------
+JAZZMIN_UI_TWEAKS = {
+    "theme": "darkly",                     # Base theme
+    "dark_mode_theme": "cyborg",           # Extra dark mode option
+    "navbar": "navbar-dark bg-gradient-primary",  
+    "sidebar": "sidebar-dark-primary elevation-4",
+    "brand_colour": "navbar-primary",
+    "accent": "accent-info",
+    "button_classes": {
+        "primary": "btn btn-primary btn-lg rounded-pill shadow",
+        "secondary": "btn btn-outline-secondary rounded-pill",
+    },
+    "sidebar_nav_small_text": True,
+    "sidebar_disable_expand": False,
+    "footer_fixed": True,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "actions_sticky_top": True,
+    "show_ui_builder": False,
+}
+
+
+
+
+
+
