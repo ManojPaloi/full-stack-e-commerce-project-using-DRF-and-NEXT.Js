@@ -1,9 +1,9 @@
 from django.urls import path
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenObtainPairView
 from .views import (
-    RegisterView,               # ✅ Add this import
+    RegisterView,
     VerifyOTPView,
     ResendOTPView,
     LoginView,
@@ -13,14 +13,17 @@ from .views import (
     SendPasswordResetOTPView,
     VerifyPasswordResetOTPView,
     ResetPasswordView,
+    CookieTokenRefreshView,  # ✅ Use custom refresh view
 )
 
+# ------------------------------
+# API Root Helper
+# ------------------------------
 @api_view(["GET"])
 def accounts_root(request, format=None):
     return Response({
         "register": request.build_absolute_uri("register/"),
         "otp": {
-            "send": request.build_absolute_uri("otp/send/"),   # ✅ Add to root
             "verify": request.build_absolute_uri("otp/verify/"),
             "resend": request.build_absolute_uri("otp/resend/"),
         },
@@ -39,10 +42,15 @@ def accounts_root(request, format=None):
         },
     })
 
+# ------------------------------
+# URL Patterns
+# ------------------------------
 urlpatterns = [
-    # ✅ OTP for registration
+    # ✅ API root
     path("", accounts_root, name="accounts-root"),
-    path("register/", RegisterView.as_view(), name="register"),      # ✅ Added send OTP endpoint
+
+    # ✅ Registration and OTP
+    path("register/", RegisterView.as_view(), name="register"),
     path("otp/verify/", VerifyOTPView.as_view(), name="verify_otp"),
     path("otp/resend/", ResendOTPView.as_view(), name="resend_otp"),
 
@@ -52,15 +60,12 @@ urlpatterns = [
     path("profile/", ProfileView.as_view(), name="profile"),
     path("users/", UserListView.as_view(), name="users"),
 
-    # ✅ Password Reset Flow
+    # ✅ Password reset flow
     path("password/forgot/", SendPasswordResetOTPView.as_view(), name="forgot_password"),
     path("password/verify-otp/", VerifyPasswordResetOTPView.as_view(), name="verify_password_otp"),
     path("password/reset/", ResetPasswordView.as_view(), name="reset_password"),
 
-    # ✅ JWT Tokens
+    # ✅ JWT token endpoints
     path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("token/refresh/", CookieTokenRefreshView.as_view(), name="token_refresh"),  # 🔑 custom view
 ]
-
-
-

@@ -63,7 +63,10 @@ CORS_ALLOW_CREDENTIALS = True  # ✅ important for HttpOnly cookies
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
+
 
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 CORS_ALLOW_HEADERS = [
@@ -81,7 +84,10 @@ CORS_ALLOW_HEADERS = [
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
+
 
 # -------------------------------------------------------------------
 # URL / WSGI
