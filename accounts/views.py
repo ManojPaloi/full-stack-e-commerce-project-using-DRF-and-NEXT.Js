@@ -194,7 +194,7 @@ class CookieTokenRefreshView(TokenRefreshView):
 # Logout (delete cookie + blacklist)
 # -------------------------
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def post(self, request):
         cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
