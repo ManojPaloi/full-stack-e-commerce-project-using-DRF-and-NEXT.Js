@@ -166,38 +166,28 @@ class CookieTokenRefreshView(TokenRefreshView):
     Refresh access token using HttpOnly refresh token stored in cookie.
     """
     def post(self, request, *args, **kwargs):
-        # Pull token from cookie if not provided in body
         refresh_token = request.COOKIES.get("refresh_token")
         data = request.data.copy()
         if not data.get("refresh") and refresh_token:
             data["refresh"] = refresh_token
 
         serializer = self.get_serializer(data=data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception:
-            return Response(
-                {"detail": "Invalid or missing refresh token."},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+        serializer.is_valid(raise_exception=True)
 
-        response = Response(
-            {"access": serializer.validated_data["access"]},
-            status=status.HTTP_200_OK
-        )
-
-        # If SimpleJWT rotated refresh token, update cookie
+        response = Response({"access": serializer.validated_data["access"]})
+        # Rotate refresh if provided by SimpleJWT
         if "refresh" in serializer.validated_data:
             response.set_cookie(
                 key="refresh_token",
                 value=serializer.validated_data["refresh"],
                 httponly=True,
-                secure=not settings.DEBUG,  # True on production (HTTPS)
-                samesite="None",            # Required for cross-site
-                max_age=24 * 60 * 60,
-                path="/"
+                secure=True,
+                samesite="None",
+                max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
+                path="/",
             )
         return response
+
 
 
 # -------------------------
@@ -208,12 +198,7 @@ class LogoutView(APIView):
 
     def post(self, request):
         cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
-        response = Response({"status": "success", "message": "Logged out successfully."}, status=status.HTTP_200_OK)
-
-        # Delete the cookie on logout
-        response.delete_cookie(cookie_name)
-
-        # Blacklist token from cookie if exists
+        response = Response({"status": "success", "message": "Logged out."})
         refresh_token = request.COOKIES.get(cookie_name)
         if refresh_token:
             try:
@@ -221,15 +206,9 @@ class LogoutView(APIView):
                 token.blacklist()
             except Exception:
                 pass
-
-        # Optionally blacklist access jti
-        access_token = request.auth
-        if access_token:
-            jti = access_token.get("jti")
-            if jti:
-                BlacklistedAccessToken.objects.get_or_create(jti=jti)
-
+        response.delete_cookie(cookie_name, path="/")
         return response
+
 
 
 
