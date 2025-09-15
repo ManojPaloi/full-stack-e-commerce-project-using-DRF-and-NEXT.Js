@@ -8,7 +8,6 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.utils.decorators import method_decorator
-from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -116,27 +115,48 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email")
-        password = request.data.get("password")
-
-        user = authenticate(request, email=email, password=password)
-        if user is None:
-            return Response({"detail": "Invalid credentials"}, status=400)
+        """
+        Authenticate user (via serializer), issue JWT access & refresh token.
+        The refresh token is placed in an HttpOnly cookie (name from settings.SIMPLE_JWT['AUTH_COOKIE']).
+        """
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
 
         refresh = RefreshToken.for_user(user)
-        access = str(refresh.access_token)
+        access_token = str(refresh.access_token)
+        refresh_token_str = str(refresh)
 
-        response = Response({"access": access}, status=200)
+        # Response body: do not include refresh token if you want it only in cookie,
+        # but we include access token so frontend can store/use it in memory.
+        response = Response({
+            "status": "success",
+            "message": "Login successful 🎉",
+            "access": access_token,
+            "user": UserSerializer(user, context={"request": request}).data
+        }, status=status.HTTP_200_OK)
+
+        # Read cookie settings from SIMPLE_JWT config
+        cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
+        cookie_http_only = settings.SIMPLE_JWT.get("AUTH_COOKIE_HTTP_ONLY", True)
+        cookie_secure = settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", False)
+        cookie_samesite = settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "Lax")
+        refresh_lifetime = settings.SIMPLE_JWT.get("REFRESH_TOKEN_LIFETIME", timezone.timedelta(days=1))
+        try:
+            max_age = int(refresh_lifetime.total_seconds())
+        except Exception:
+            max_age = 24 * 60 * 60
+
+        # Set HttpOnly cookie with refresh token
         response.set_cookie(
-            key="refresh_token",
-            value=str(refresh),
-            httponly=True,
-            secure=not settings.DEBUG,  # ✅ True on HTTPS production
-            samesite="None",            # ✅ Required for cross-site
-            max_age=24*60*60
+            key=cookie_name,
+            value=refresh_token_str,
+            httponly=cookie_http_only,
+            secure=cookie_secure,
+            samesite=cookie_samesite,
+            max_age=max_age,
         )
         return response
-
 
 # -------------------------
 # Cookie Refresh View
@@ -178,7 +198,6 @@ class CookieTokenRefreshView(TokenRefreshView):
                 path="/"
             )
         return response
-
 
 
 # -------------------------
