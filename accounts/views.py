@@ -148,7 +148,7 @@ class LoginView(APIView):
 # Cookie Refresh View
 # -------------------------
 class CookieTokenRefreshView(TokenRefreshView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get("refresh_token")  # <-- read from cookie
