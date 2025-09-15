@@ -195,8 +195,8 @@ SIMPLE_JWT = {
     # Cookie settings (we will read these in the views)
     "AUTH_COOKIE": "refresh_token",         # cookie name used for refresh token
     "AUTH_COOKIE_HTTP_ONLY": True,          # make cookie HttpOnly
-    "AUTH_COOKIE_SECURE": not DEBUG,        # True on production (HTTPS)
-    "AUTH_COOKIE_SAMESITE": "Lax",          # adjust to 'None' if cross-site cookies required + secure
+    "AUTH_COOKIE_SECURE": False,        # True on production (HTTPS)
+    "AUTH_COOKIE_SAMESITE": "None",          # adjust to 'None' if cross-site cookies required + secure
 }
 
 

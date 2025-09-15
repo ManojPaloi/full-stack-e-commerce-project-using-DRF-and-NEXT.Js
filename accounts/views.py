@@ -107,40 +107,53 @@ class RegisterView(generics.GenericAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-# -------------------------
-# Login View (sets refresh cookie)
-# -------------------------
-
 class LoginView(APIView):
+    """
+    Authenticate the user, set the refresh token as an HttpOnly cookie,
+    and return the access token + user details in JSON.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
+        # Validate login data
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
 
+        # Create tokens
         refresh = RefreshToken.for_user(user)
         access = str(refresh.access_token)
 
-        response = Response({
-            "status": "success",
-            "message": "Login successful 🎉",
-            "access": access,
-            "user": UserSerializer(user, context={"request": request}).data
-        })
+        # Build JSON response
+        response = Response(
+            {
+                "status": "success",
+                "message": "Login successful 🎉",
+                "access": access,
+                "user": UserSerializer(user, context={"request": request}).data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
-        # Set HttpOnly refresh token cookie
+        # Cookie settings
+        cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
+        cookie_secure = settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", not settings.DEBUG)
+        cookie_samesite = settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "Lax")
+        cookie_max_age = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+
+        # ✅ Set HttpOnly cookie for refresh token
         response.set_cookie(
-            key="refresh_token",
+            key=cookie_name,
             value=str(refresh),
             httponly=True,
-            secure=False,  # True in production with HTTPS
-            samesite="Lax",
-            max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
-            path="/",
+            secure=cookie_secure,  # Use True in production with HTTPS
+            samesite=cookie_samesite,
+            max_age=cookie_max_age,
+            path="/",  # Make cookie available site-wide
         )
 
         return response
+
 
 
 
@@ -148,19 +161,16 @@ class LoginView(APIView):
 # Cookie Refresh View
 # -------------------------
 class CookieTokenRefreshView(TokenRefreshView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get("refresh_token")  # <-- read from cookie
+        refresh_token = request.COOKIES.get("refresh_token")
         if not refresh_token:
             return Response({"detail": "No refresh token cookie found."}, status=400)
-
         serializer = self.get_serializer(data={"refresh": refresh_token})
         serializer.is_valid(raise_exception=True)
+        return Response({"access": serializer.validated_data["access"]})
 
-        return Response({
-            "access": serializer.validated_data["access"]
-        })
 
 
 
