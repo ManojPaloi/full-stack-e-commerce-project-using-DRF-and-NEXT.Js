@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.utils.decorators import method_decorator
+from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -115,48 +116,27 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        """
-        Authenticate user (via serializer), issue JWT access & refresh token.
-        The refresh token is placed in an HttpOnly cookie (name from settings.SIMPLE_JWT['AUTH_COOKIE']).
-        """
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        user = authenticate(request, email=email, password=password)
+        if user is None:
+            return Response({"detail": "Invalid credentials"}, status=400)
 
         refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
-        refresh_token_str = str(refresh)
+        access = str(refresh.access_token)
 
-        # Response body: do not include refresh token if you want it only in cookie,
-        # but we include access token so frontend can store/use it in memory.
-        response = Response({
-            "status": "success",
-            "message": "Login successful 🎉",
-            "access": access_token,
-            "user": UserSerializer(user, context={"request": request}).data
-        }, status=status.HTTP_200_OK)
-
-        # Read cookie settings from SIMPLE_JWT config
-        cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
-        cookie_http_only = settings.SIMPLE_JWT.get("AUTH_COOKIE_HTTP_ONLY", True)
-        cookie_secure = settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", False)
-        cookie_samesite = settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "Lax")
-        refresh_lifetime = settings.SIMPLE_JWT.get("REFRESH_TOKEN_LIFETIME", timezone.timedelta(days=1))
-        try:
-            max_age = int(refresh_lifetime.total_seconds())
-        except Exception:
-            max_age = 24 * 60 * 60
-
-        # Set HttpOnly cookie with refresh token
+        response = Response({"access": access}, status=200)
         response.set_cookie(
-            key=cookie_name,
-            value=refresh_token_str,
-            httponly=cookie_http_only,
-            secure=cookie_secure,
-            samesite=cookie_samesite,
-            max_age=max_age,
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            secure=not settings.DEBUG,  # ✅ True on HTTPS production
+            samesite="None",            # ✅ Required for cross-site
+            max_age=24*60*60
         )
         return response
+
 
 # -------------------------
 # Cookie Refresh View
@@ -164,62 +144,42 @@ class LoginView(APIView):
 class CookieTokenRefreshView(TokenRefreshView):
     """
     Refresh access token using HttpOnly refresh token stored in cookie.
-    Behavior:
-      - If request.data includes 'refresh' use it.
-      - Else, try to read refresh token from cookie (SIMPLE_JWT['AUTH_COOKIE']).
-      - Return new access token and rotate refresh cookie if serializer returns 'refresh'.
     """
-
     def post(self, request, *args, **kwargs):
-        cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
-        cookie_http_only = settings.SIMPLE_JWT.get("AUTH_COOKIE_HTTP_ONLY", True)
-        cookie_secure = settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", False)
-        cookie_samesite = settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "Lax")
-        refresh_lifetime = settings.SIMPLE_JWT.get("REFRESH_TOKEN_LIFETIME", timezone.timedelta(days=1))
-        try:
-            max_age = int(refresh_lifetime.total_seconds())
-        except Exception:
-            max_age = 24 * 60 * 60
+        # Pull token from cookie if not provided in body
+        refresh_token = request.COOKIES.get("refresh_token")
+        data = request.data.copy()
+        if not data.get("refresh") and refresh_token:
+            data["refresh"] = refresh_token
 
-        # Determine refresh token source
-        request_refresh = None
-        if isinstance(request.data, dict) and request.data.get("refresh"):
-            request_refresh = request.data.get("refresh")
-        else:
-            # fallback to cookie
-            request_refresh = request.COOKIES.get(cookie_name)
-
-        if not request_refresh:
-            return Response({"detail": "Invalid or missing refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # Build fresh data for serializer (avoid mutating request.data)
-        data = {"refresh": request_refresh}
         serializer = self.get_serializer(data=data)
-
         try:
             serializer.is_valid(raise_exception=True)
-        except TokenError as e:
-            return Response({"detail": "Invalid refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception:
-            return Response({"detail": "Invalid or missing refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
-
-        validated = serializer.validated_data  # contains 'access' and maybe 'refresh' if rotated
-
-        response = Response({"access": validated.get("access")}, status=status.HTTP_200_OK)
-
-        # If a new refresh token is returned (rotation), update cookie
-        new_refresh = validated.get("refresh", None)
-        if new_refresh:
-            response.set_cookie(
-                key=cookie_name,
-                value=new_refresh,
-                httponly=cookie_http_only,
-                secure=cookie_secure,
-                samesite=cookie_samesite,
-                max_age=max_age,
+            return Response(
+                {"detail": "Invalid or missing refresh token."},
+                status=status.HTTP_401_UNAUTHORIZED
             )
 
+        response = Response(
+            {"access": serializer.validated_data["access"]},
+            status=status.HTTP_200_OK
+        )
+
+        # If SimpleJWT rotated refresh token, update cookie
+        if "refresh" in serializer.validated_data:
+            response.set_cookie(
+                key="refresh_token",
+                value=serializer.validated_data["refresh"],
+                httponly=True,
+                secure=not settings.DEBUG,  # True on production (HTTPS)
+                samesite="None",            # Required for cross-site
+                max_age=24 * 60 * 60,
+                path="/"
+            )
         return response
+
+
 
 # -------------------------
 # Logout (delete cookie + blacklist)
