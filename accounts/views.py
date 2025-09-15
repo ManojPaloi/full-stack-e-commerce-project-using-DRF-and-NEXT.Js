@@ -164,13 +164,11 @@ class LoginView(APIView):
 class CookieTokenRefreshView(TokenRefreshView):
 
     def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get("refresh_token")
+        refresh_token = request.COOKIES.get("refresh_token") or request.data.get("refresh")
         if not refresh_token:
-            return Response({"detail": "No refresh token cookie found."}, status=400)
+            return Response({"detail": "No refresh token found."}, status=400)
 
-        data = {"refresh": refresh_token}
-
-        serializer = self.get_serializer(data=data)
+        serializer = self.get_serializer(data={"refresh": refresh_token})
         serializer.is_valid(raise_exception=True)
 
         response = Response({"access": serializer.validated_data["access"]})
@@ -181,13 +179,14 @@ class CookieTokenRefreshView(TokenRefreshView):
                 key="refresh_token",
                 value=serializer.validated_data["refresh"],
                 httponly=True,
-                secure=False,  # False for local dev
+                secure=False,
                 samesite="Lax",
                 max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
                 path="/",
             )
 
         return response
+
 
 
 
