@@ -151,20 +151,17 @@ class CookieTokenRefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        # Frontend must send { "refresh": "<token>" } in POST body
-        refresh_token = request.data.get("refresh")
-
+        refresh_token = request.COOKIES.get("refresh_token")  # <-- read from cookie
         if not refresh_token:
-            return Response(
-                {"detail": "Refresh token not provided in request body."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "No refresh token cookie found."}, status=400)
 
-        # Use serializer to validate and generate new access token
         serializer = self.get_serializer(data={"refresh": refresh_token})
         serializer.is_valid(raise_exception=True)
 
-        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+        return Response({
+            "access": serializer.validated_data["access"]
+        })
+
 
 
 
