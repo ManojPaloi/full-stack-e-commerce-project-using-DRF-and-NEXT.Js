@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "banner",
     "products",
     "oders",
+    "coupons",
 
     # Third-party apps
     "rest_framework",           # Django REST Framework

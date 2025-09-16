@@ -41,6 +41,8 @@ urlpatterns = [
     path("api/category/", include("category.urls")),
     path("api/banners/", include("banner.urls")),
     path("api/products/", include("products.urls")),
+    path("api/orders/", include("oders.urls")),
+    path("api/coupons/", include("coupons.urls")),
 
     # Optional: DRF router endpoints (if using viewsets)
     # path("api/", include(router.urls)),
