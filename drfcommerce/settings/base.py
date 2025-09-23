@@ -180,27 +180,21 @@ REST_FRAMEWORK = {
 # -------------------------------------------------------------------
 # 🔑 SimpleJWT Configuration with Cookie Support
 # -------------------------------------------------------------------
-# -------------------------------------------------------------------
-# 🔑 SimpleJWT Configuration with Cookie Support
-# -------------------------------------------------------------------
-# -------------------------------------------------------------------
-# 🔑 SimpleJWT Configuration with Cookie Support
-# -------------------------------------------------------------------
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
-
-    # ✅ Cookie settings for production (HTTPS)
     "AUTH_COOKIE": "refresh_token",
     "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_SECURE": True,   # ✅ Cookies only over HTTPS
-    "AUTH_COOKIE_SAMESITE": "None",  # ✅ Required for cross-origin cookies
+    # ⚡ Conditional settings
+    "AUTH_COOKIE_SECURE": not DEBUG,          # False on localhost, True on prod
+    "AUTH_COOKIE_SAMESITE": "Lax" if DEBUG else "None",  # Lax for dev, None for prod cross-site
 }
+
 
 
 # -------------------------------------------------------------------

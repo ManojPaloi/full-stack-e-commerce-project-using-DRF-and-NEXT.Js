@@ -108,10 +108,6 @@ class RegisterView(generics.GenericAPIView):
 # -------------------------------------------------------------------
 
 class LoginView(APIView):
-    """
-    Validate credentials, return access token in JSON,
-    and set refresh token as HttpOnly cookie.
-    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -132,42 +128,36 @@ class LoginView(APIView):
             status=status.HTTP_200_OK,
         )
 
-        # Cookie configuration
-        cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
-        cookie_secure = settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", not settings.DEBUG)
-        cookie_samesite = settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "Lax")
-        cookie_max_age = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+        # ✅ Cookie settings
+        secure_cookie = settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", not settings.DEBUG)
+        samesite_cookie = settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "Lax")
+        max_age = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
 
-        # ✅ Set refresh token cookie
         response.set_cookie(
-            key=cookie_name,
+            key=settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token"),
             value=str(refresh),
             httponly=True,
-            secure=cookie_secure,
-            samesite=cookie_samesite,
-            max_age=cookie_max_age,
+            secure=secure_cookie,
+            samesite=samesite_cookie,
+            max_age=max_age,
             path="/",
         )
         return response
 
-# -------------------------------------------------------------------
-# Refresh Token (Cookie)
-# -------------------------------------------------------------------
+
 
 class CookieTokenRefreshView(TokenRefreshView):
-    """
-    Reads refresh token from HttpOnly cookie and returns a new access token.
-    """
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get("refresh_token")
+        refresh_token = request.COOKIES.get(settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token"))
         if not refresh_token:
             return Response({"detail": "No refresh token cookie found."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data={"refresh": refresh_token})
         serializer.is_valid(raise_exception=True)
         return Response({"access": serializer.validated_data["access"]}, status=status.HTTP_200_OK)
+
 
 # -------------------------------------------------------------------
 # Logout
