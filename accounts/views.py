@@ -1,31 +1,36 @@
 """
 accounts/views.py
 ==================
-This module implements:
-- User registration with OTP verification (pending user storage until OTP is confirmed)
-- Login with HttpOnly refresh cookie (SimpleJWT)
+This module implements the authentication and user management API endpoints, including:
+
+- User registration with OTP verification (PendingUser storage until OTP confirmation)
+- Login with HttpOnly refresh token cookie (SimpleJWT)
 - Cookie-based refresh token rotation
-- Logout (blacklisting refresh token + deleting cookie)
-- Profile view/update
-- Admin user listing
-- Password reset flow using OTP
+- Logout with refresh token blacklisting and cookie deletion
+- User profile retrieval and update
+- Admin-only user listing
+- Password reset flow using OTP (send → verify → reset)
 """
 
+from typing import Optional
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.mail import EmailMultiAlternatives
+from django.db import IntegrityError
+from django.template.loader import render_to_string
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+
 from rest_framework import generics, status
-from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from django.utils import timezone
-from django.contrib.auth import get_user_model
-from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
-from rest_framework_simplejwt.exceptions import InvalidToken
-from django.db import IntegrityError
+
 import random
 
 # Local imports
@@ -40,20 +45,37 @@ from .serializers import (
 
 User = get_user_model()
 
+
 # -------------------------------------------------------------------
-# Utility functions
+# Utility Functions
 # -------------------------------------------------------------------
 
 def generate_otp() -> str:
-    """Generate a random 6-digit OTP code."""
+    """
+    Generate a 6-digit random OTP code.
+
+    Returns:
+        str: Random OTP code as string
+    """
     return str(random.randint(100000, 999999))
 
-def send_otp_email(email: str, otp_code: str, purpose="verification", user_name=None):
+
+def send_otp_email(email: str, otp_code: str, purpose: str = "verification", user_name: Optional[str] = None):
     """
-    Sends OTP via email with plain text and HTML versions.
+    Send OTP email to the user.
+
+    Args:
+        email (str): Recipient email address
+        otp_code (str): OTP code to send
+        purpose (str): "verification" or "password_reset"
+        user_name (Optional[str]): User's name for personalized email
     """
     subject = "Your OTP Code" if purpose == "verification" else "Password Reset OTP"
-    context = {"otp_code": otp_code, "user_name": user_name or "User", "site_name": "Django Auth System"}
+    context = {
+        "otp_code": otp_code,
+        "user_name": user_name or "User",
+        "site_name": "Django Auth System"
+    }
 
     text_content = render_to_string("emails/otp_email.txt", context)
     html_content = render_to_string("emails/otp_email.html", context)
@@ -62,14 +84,17 @@ def send_otp_email(email: str, otp_code: str, purpose="verification", user_name=
     email_message.attach_alternative(html_content, "text/html")
     email_message.send()
 
+
 # -------------------------------------------------------------------
 # Registration
 # -------------------------------------------------------------------
 
 class RegisterView(generics.GenericAPIView):
     """
-    Create a PendingUser and send OTP.
-    User is only saved to CustomUser after OTP verification.
+    Handle user registration.
+
+    Creates a PendingUser and sends OTP.
+    The actual CustomUser is created only after OTP verification.
     """
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
@@ -77,6 +102,7 @@ class RegisterView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         try:
             pending_user = PendingUser.objects.create(
                 email=serializer.validated_data["email"],
@@ -105,13 +131,16 @@ class RegisterView(generics.GenericAPIView):
             status=status.HTTP_201_CREATED,
         )
 
+
 # -------------------------------------------------------------------
 # Login
 # -------------------------------------------------------------------
 
-
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
+    """
+    Handle user login and set HttpOnly refresh token cookie.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -132,7 +161,7 @@ class LoginView(APIView):
             status=status.HTTP_200_OK,
         )
 
-        # ✅ Cookie settings
+        # Cookie settings
         secure_cookie = settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", not settings.DEBUG)
         samesite_cookie = settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "Lax")
         max_age = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
@@ -149,8 +178,10 @@ class LoginView(APIView):
         return response
 
 
-
 class CookieTokenRefreshView(TokenRefreshView):
+    """
+    Refresh access token using cookie-stored refresh token.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -169,13 +200,14 @@ class CookieTokenRefreshView(TokenRefreshView):
 
 class LogoutView(APIView):
     """
-    Blacklist the refresh token and clear the cookie.
+    Logout user by blacklisting refresh token and deleting cookie.
     """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
         response = Response({"status": "success", "message": "Logged out."})
+
         refresh_token = request.COOKIES.get(cookie_name)
         if refresh_token:
             try:
@@ -183,8 +215,10 @@ class LogoutView(APIView):
                 token.blacklist()
             except Exception:
                 pass
+
         response.delete_cookie(cookie_name, path="/")
         return response
+
 
 # -------------------------------------------------------------------
 # Profile View / Update
@@ -192,8 +226,8 @@ class LogoutView(APIView):
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     """
-    GET → Retrieve profile
-    PATCH/PUT → Update profile
+    GET → Retrieve user profile.
+    PATCH/PUT → Update user profile.
     """
     serializer_class = ProfileUpdateSerializer
     permission_classes = [IsAuthenticated]
@@ -212,21 +246,28 @@ class ProfileView(generics.RetrieveUpdateAPIView):
         serializer.save()
         return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
 
+
 # -------------------------------------------------------------------
 # Admin-only: List Users
 # -------------------------------------------------------------------
 
 class UserListView(generics.ListAPIView):
-    """Admin view to list all registered users."""
+    """
+    Admin view to list all registered users.
+    """
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
+
 
 # -------------------------------------------------------------------
 # OTP Verification / Resend
 # -------------------------------------------------------------------
 
 class VerifyOTPView(APIView):
+    """
+    Verify registration OTP and activate the user.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -240,10 +281,8 @@ class VerifyOTPView(APIView):
         if not otp or otp.is_expired():
             return Response({"detail": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Mark OTP as used
         otp.mark_used()
 
-        # Move PendingUser → CustomUser
         try:
             pending = PendingUser.objects.get(email=email)
         except PendingUser.DoesNotExist:
@@ -254,13 +293,11 @@ class VerifyOTPView(APIView):
             password=pending.password,
             first_name=pending.first_name,
             mobile_no=pending.mobile_no,
-            is_active=True,  # ✅ Activate now
+            is_active=True,
         )
 
-        # Delete PendingUser after migration
         pending.delete()
 
-        # Issue tokens
         refresh = RefreshToken.for_user(user)
         access = refresh.access_token
 
@@ -269,24 +306,21 @@ class VerifyOTPView(APIView):
             "access": str(access),
             "user": {"email": user.email, "username": user.username},
         })
-        # Set refresh token cookie
+
         response.set_cookie(
             "refresh_token",
             str(refresh),
             httponly=True,
-            secure=True,       # Use HTTPS in production
-            samesite="None",   # For cross-site requests
+            secure=True,
+            samesite="None",
             max_age=7*24*60*60
         )
         return response
-    
-    
-    
-    
-    
+
+
 class ResendOTPView(APIView):
     """
-    Resend OTP to pending or inactive accounts.
+    Resend OTP to pending or inactive accounts with cooldown.
     """
     permission_classes = [AllowAny]
     COOLDOWN_SECONDS = 60
@@ -296,7 +330,6 @@ class ResendOTPView(APIView):
         if not email:
             return Response({"status": "error", "message": "Email is required."}, status=400)
 
-        # Check if OTP resend is allowed
         last_otp = EmailOTP.objects.filter(email=email, purpose="registration").order_by("-created_at").first()
         if last_otp and (timezone.now() - last_otp.created_at).total_seconds() < self.COOLDOWN_SECONDS:
             wait = int(self.COOLDOWN_SECONDS - (timezone.now() - last_otp.created_at).total_seconds())
@@ -311,12 +344,15 @@ class ResendOTPView(APIView):
         send_otp_email(email, otp_code, "verification")
         return Response({"status": "success", "message": "OTP resent."}, status=200)
 
+
 # -------------------------------------------------------------------
-# Password Reset Flow (Send → Verify → Reset)
+# Password Reset Flow
 # -------------------------------------------------------------------
 
 class SendPasswordResetOTPView(APIView):
-    """Send OTP for password reset."""
+    """
+    Send OTP for password reset.
+    """
     permission_classes = [AllowAny]
     COOLDOWN_SECONDS = 60
 
@@ -338,8 +374,11 @@ class SendPasswordResetOTPView(APIView):
         send_otp_email(email, otp_code, "password_reset")
         return Response({"status": "success", "message": "OTP sent."}, status=200)
 
+
 class VerifyPasswordResetOTPView(APIView):
-    """Verify OTP for password reset."""
+    """
+    Verify OTP for password reset.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -360,15 +399,21 @@ class VerifyPasswordResetOTPView(APIView):
         otp_obj.save()
         return Response({"status": "success", "message": "OTP verified."}, status=200)
 
+
 class ResetPasswordView(APIView):
-    """Set a new password after OTP verification."""
+    """
+    Reset password after OTP verification.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = PasswordResetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         user = serializer.validated_data["user"]
         user.set_password(serializer.validated_data["new_password"])
         user.save()
+
         EmailOTP.objects.filter(email=user.email, purpose="password_reset").delete()
+
         return Response({"status": "success", "message": "Password reset successful."}, status=200)

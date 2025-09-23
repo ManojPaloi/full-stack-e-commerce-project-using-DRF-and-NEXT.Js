@@ -1,3 +1,17 @@
+"""
+settings/base.py
+================
+Base Django settings for DRF e-commerce project.
+
+Includes:
+- Environment variable loading
+- Installed apps & middleware
+- REST framework & JWT config
+- Static & media files
+- Email and CORS settings
+- Jazzmin admin UI customization
+"""
+
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -13,13 +27,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 DEBUG = os.getenv("DEBUG", "True") == "True"
-
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # -------------------------------------------------------------------
 # ✅ Installed Apps
 # -------------------------------------------------------------------
 INSTALLED_APPS = [
+    # Admin
     "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -61,9 +75,8 @@ MIDDLEWARE = [
 # 🌐 CORS Settings
 # -------------------------------------------------------------------
 CORS_ALLOW_CREDENTIALS = True
-
-# Allow all origins temporarily for development (safe to restrict later)
 CORS_ALLOW_ALL_ORIGINS = False
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -76,12 +89,8 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://127\.0\.0\.1:\d+$",
 ]
 
-# Allow default headers + extra
-CORS_ALLOW_HEADERS = list(default_headers) + [
-    "x-csrftoken",
-]
+CORS_ALLOW_HEADERS = list(default_headers) + ["x-csrftoken"]
 
-# CSRF trusted origins
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -97,7 +106,7 @@ ROOT_URLCONF = "drfcommerce.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [],  # Custom template directories
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -123,7 +132,7 @@ DATABASES = {
 }
 
 # -------------------------------------------------------------------
-# Password Validation
+# Password validation
 # -------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -156,7 +165,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # -------------------------------------------------------------------
 AUTH_USER_MODEL = "accounts.CustomUser"
 AUTHENTICATION_BACKENDS = [
-    "accounts.backends.EmailOrUsernameModelBackend",
+    "accounts.backends.EmailOrUsernameModelBackend",  # Custom auth by email/username
     "django.contrib.auth.backends.ModelBackend",
 ]
 
@@ -190,8 +199,8 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_COOKIE": "refresh_token",
     "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_SECURE": False if DEBUG else True,       # False on localhost
-    "AUTH_COOKIE_SAMESITE": "Lax" if DEBUG else "None",   # Lax on dev, None in prod
+    "AUTH_COOKIE_SECURE": False if DEBUG else True,
+    "AUTH_COOKIE_SAMESITE": "Lax" if DEBUG else "None",
 }
 
 # -------------------------------------------------------------------
@@ -206,7 +215,7 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 
 # -------------------------------------------------------------------
-# Jazzmin UI Tweaks
+# Jazzmin Admin UI Tweaks
 # -------------------------------------------------------------------
 JAZZMIN_UI_TWEAKS = {
     "theme": "darkly",
