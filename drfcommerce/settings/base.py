@@ -195,8 +195,9 @@ SIMPLE_JWT = {
     # Cookie settings for storing refresh tokens securely
     "AUTH_COOKIE": "refresh_token",
     "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_SECURE": True,      # ✅ Add/Update here for local dev
-    "AUTH_COOKIE_SAMESITE": "None",    # ✅ Add/Update here for local dev
+    "AUTH_COOKIE_SECURE": False,      # ✅ Allows cookies over HTTP for localhost
+    "AUTH_COOKIE_SAMESITE": "Lax",    # ✅ Allows cross-origin cookies from localhost frontend
+
 }
 
 
