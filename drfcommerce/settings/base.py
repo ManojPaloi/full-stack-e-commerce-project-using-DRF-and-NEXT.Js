@@ -63,12 +63,10 @@ MIDDLEWARE = [
 # -------------------------------------------------------------------
 # 🌐 CORS Settings for Frontend <-> Backend Communication
 # -------------------------------------------------------------------
-CORS_ALLOW_CREDENTIALS = True  # ✅ Required to send cookies with cross-site requests
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",    # Vite frontend dev server
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://localhost:3000",    # React/Next.js dev server
-    "http://127.0.0.1:3000",
 ]
 
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
@@ -182,21 +180,25 @@ REST_FRAMEWORK = {
 # -------------------------------------------------------------------
 # 🔑 SimpleJWT Configuration with Cookie Support
 # -------------------------------------------------------------------
+# -------------------------------------------------------------------
+# 🔑 SimpleJWT Configuration with Cookie Support
+# -------------------------------------------------------------------
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),  # Short-lived access tokens
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),    # Longer-lived refresh tokens
-    "ROTATE_REFRESH_TOKENS": True,                  # Issue a new refresh token on use
-    "BLACKLIST_AFTER_ROTATION": True,               # Blacklist old refresh tokens
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
 
     # Cookie settings for storing refresh tokens securely
-    "AUTH_COOKIE": "refresh_token",   # Name of the cookie
-    "AUTH_COOKIE_HTTP_ONLY": True,    # Prevent JavaScript access
-    "AUTH_COOKIE_SECURE": False,      # ✅ Use True in production with HTTPS
-    "AUTH_COOKIE_SAMESITE": "None",   # Needed for cross-site cookies
+    "AUTH_COOKIE": "refresh_token",
+    "AUTH_COOKIE_HTTP_ONLY": True,
+    "AUTH_COOKIE_SECURE": True,      # ✅ Add/Update here for local dev
+    "AUTH_COOKIE_SAMESITE": "None",    # ✅ Add/Update here for local dev
 }
+
 
 # -------------------------------------------------------------------
 # 📧 Email Configuration (OTP / Password Reset)

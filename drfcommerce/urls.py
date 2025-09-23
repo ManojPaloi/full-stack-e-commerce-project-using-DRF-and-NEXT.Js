@@ -19,8 +19,10 @@ def api_root(request, format=None):
     return Response({
         "accounts": request.build_absolute_uri("accounts/"),
         "category": request.build_absolute_uri("category/"),
-        "banners": request.build_absolute_uri("banners/"),  # updated key for clarity
+        "banners": request.build_absolute_uri("banners/"), 
         "products": request.build_absolute_uri("products/"),
+        "oders": request.build_absolute_uri("oders/"), 
+        "coupons": request.build_absolute_uri("coupons/"),
 
     })
 
@@ -42,6 +44,7 @@ urlpatterns = [
     path("api/banners/", include("banner.urls")),
     path("api/products/", include("products.urls")),
     path("api/orders/", include("oders.urls")),
+    path("api/oders/", include("oders.urls")),
     path("api/coupons/", include("coupons.urls")),
 
     # Optional: DRF router endpoints (if using viewsets)
