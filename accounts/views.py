@@ -154,13 +154,35 @@ class CookieTokenRefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get(settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token"))
+        cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
+        refresh_token = request.COOKIES.get(cookie_name)
+
         if not refresh_token:
             return Response({"detail": "No refresh token cookie found."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data={"refresh": refresh_token})
         serializer.is_valid(raise_exception=True)
-        return Response({"access": serializer.validated_data["access"]}, status=status.HTTP_200_OK)
+
+        # Rotate refresh token cookie if ROTATE_REFRESH_TOKENS=True
+        new_refresh = serializer.validated_data.get("refresh", refresh_token)
+
+        response = Response(
+            {"access": serializer.validated_data["access"]},
+            status=status.HTTP_200_OK
+        )
+
+        response.set_cookie(
+            key=cookie_name,
+            value=new_refresh,
+            httponly=True,
+            secure=settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", not settings.DEBUG),
+            samesite=settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "Lax"),
+            max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
+            path="/",
+        )
+
+        return response
+
 
 
 # -------------------------------------------------------------------
@@ -168,23 +190,23 @@ class CookieTokenRefreshView(TokenRefreshView):
 # -------------------------------------------------------------------
 
 class LogoutView(APIView):
-    """
-    Blacklist the refresh token and clear the cookie.
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         cookie_name = settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token")
         response = Response({"status": "success", "message": "Logged out."})
         refresh_token = request.COOKIES.get(cookie_name)
+
         if refresh_token:
             try:
                 token = RefreshToken(refresh_token)
                 token.blacklist()
-            except Exception:
+            except:
                 pass
+
         response.delete_cookie(cookie_name, path="/")
         return response
+
 
 # -------------------------------------------------------------------
 # Profile View / Update
