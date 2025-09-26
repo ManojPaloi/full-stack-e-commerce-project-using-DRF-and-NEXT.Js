@@ -13,6 +13,7 @@ This module implements the authentication and user management API endpoints, inc
 """
 
 from typing import Optional
+from threading import Thread
 from datetime import timedelta 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -83,6 +84,12 @@ def send_otp_email(email: str, otp_code: str, purpose: str = "verification", use
     email_message = EmailMultiAlternatives(subject, text_content, None, [email])
     email_message.attach_alternative(html_content, "text/html")
     email_message.send()
+
+
+# Async email sending
+def send_email_async(email, code):
+    Thread(target=send_otp_email, args=(email, code, "verification")).start()
+
 
 
 # -------------------------------------------------------------------
