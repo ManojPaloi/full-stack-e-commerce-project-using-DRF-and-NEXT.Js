@@ -88,15 +88,7 @@ def send_otp_email(email: str, otp_code: str, purpose: str = "verification", use
 # -------------------------------------------------------------------
 # Registration
 # -------------------------------------------------------------------
-
 class RegisterView(generics.GenericAPIView):
-    """
-    Handle user registration.
-
-    - Creates a PendingUser if one doesn't already exist.
-    - Sends an OTP to the user's email.
-    - Validates password and password2 match.
-    """
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
@@ -111,17 +103,27 @@ class RegisterView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Check if PendingUser already exists
-        pending_user, created = PendingUser.objects.get_or_create(
-            email=serializer.validated_data["email"],
-            defaults={
-                "password": serializer.validated_data["password"],
-                "first_name": serializer.validated_data.get("first_name", ""),
-                "last_name": serializer.validated_data.get("last_name", ""),
-                "mobile_no": serializer.validated_data.get("mobile_no", ""),
-                "profile_pic": request.FILES.get("profile_pic"),
-            }
-        )
+        # Hash password
+        from django.contrib.auth.hashers import make_password
+        password_hashed = make_password(serializer.validated_data["password"])
+
+        # Create or get PendingUser
+        try:
+            pending_user, created = PendingUser.objects.get_or_create(
+                email=serializer.validated_data["email"],
+                defaults={
+                    "password": password_hashed,
+                    "first_name": serializer.validated_data.get("first_name", ""),
+                    "last_name": serializer.validated_data.get("last_name", ""),
+                    "mobile_no": serializer.validated_data.get("mobile_no", ""),
+                    "profile_pic": request.FILES.get("profile_pic"),
+                }
+            )
+        except IntegrityError as e:
+            return Response(
+                {"status": "error", "message": f"Could not create pending user: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if not created:
             return Response(
@@ -138,13 +140,17 @@ class RegisterView(generics.GenericAPIView):
             expires_at=timezone.now() + timedelta(minutes=10)
         )
 
-        # Send OTP email
-        send_otp_email(pending_user.email, otp.code, "verification")
+        # Send OTP safely
+        try:
+            send_otp_email(pending_user.email, otp.code, "verification")
+        except Exception as e:
+            print("Email sending failed:", e)
 
         return Response(
             {"status": "success", "message": "OTP sent successfully.", "email": pending_user.email},
             status=status.HTTP_201_CREATED
         )
+
 
 # -------------------------------------------------------------------
 # Login
