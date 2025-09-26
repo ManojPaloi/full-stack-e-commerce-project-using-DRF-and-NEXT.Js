@@ -1,40 +1,42 @@
 from rest_framework import serializers
-from .models import FirstBanner, SecondBanner
+from .models import FastBanner, SecondBanner
 
-
-class FirstBannerSerializer(serializers.ModelSerializer):
-    """
-    Serializer for FirstBanner model.
-    Includes an extra field `image_url` to provide
-    the fully qualified URL for the banner image.
-    """
-    image_url = serializers.SerializerMethodField()
+class FastBannerSerializer(serializers.ModelSerializer):
+    category = serializers.StringRelatedField()  # Returns category name
+    images = serializers.SerializerMethodField()  # Returns list of image URLs
 
     class Meta:
-        model = FirstBanner
-        fields = "__all__"  # Includes: id, title, image, image_description, link_url, is_active, created_at
+        model = FastBanner
+        fields = [
+            "title",
+            "description",
+            "images",
+            "button_text",
+            "discount_text",
+            "category",
+        ]
 
-    def get_image_url(self, obj):
-        request = self.context.get("request")
-        if obj.image and request:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url if obj.image else None
-
+    def get_images(self, obj):
+        if obj.image:
+            return [obj.image.url]  # wrap single image in a list
+        return []
 
 class SecondBannerSerializer(serializers.ModelSerializer):
-    """
-    Serializer for SecondBanner model.
-    Includes an extra field `image_url` to provide
-    the fully qualified URL for the banner image.
-    """
-    image_url = serializers.SerializerMethodField()
+    category = serializers.StringRelatedField()
+    images = serializers.SerializerMethodField()
 
     class Meta:
         model = SecondBanner
-        fields = "__all__"  # Includes: id, title, image, image_description, link_url, is_active, created_at
+        fields = [
+            "title",
+            "description",
+            "images",
+            "button_text",
+            "discount_text",
+            "category",
+        ]
 
-    def get_image_url(self, obj):
-        request = self.context.get("request")
-        if obj.image and request:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url if obj.image else None
+    def get_images(self, obj):
+        if obj.image:
+            return [obj.image.url]
+        return []
