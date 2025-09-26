@@ -93,8 +93,9 @@ class RegisterView(generics.GenericAPIView):
     """
     Handle user registration.
 
-    Creates a PendingUser and sends OTP.
-    The actual CustomUser is created only after OTP verification.
+    - Creates a PendingUser if one doesn't already exist.
+    - Sends an OTP to the user's email.
+    - Validates password and password2 match.
     """
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
@@ -103,35 +104,47 @@ class RegisterView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        try:
-            pending_user = PendingUser.objects.create(
-                email=serializer.validated_data["email"],
-                password=serializer.validated_data["password"],
-                first_name=serializer.validated_data.get("first_name", ""),
-                last_name=serializer.validated_data.get("last_name", ""),
-                mobile_no=serializer.validated_data.get("mobile_no", ""),
-                profile_pic=request.FILES.get("profile_pic"),
-            )
-        except IntegrityError as e:
+        # Password match validation
+        if serializer.validated_data["password"] != serializer.validated_data["password2"]:
             return Response(
-                {"status": "error", "message": f"Could not create pending user: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"status": "error", "message": "Passwords do not match."},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        otp = EmailOTP.objects.create(
-            email=pending_user.email,
-            code=generate_otp(),
-            purpose="registration",
-            expires_at=timezone.now() + timedelta(minutes=10),  # ✅ FIXED
+        # Check if PendingUser already exists
+        pending_user, created = PendingUser.objects.get_or_create(
+            email=serializer.validated_data["email"],
+            defaults={
+                "password": serializer.validated_data["password"],
+                "first_name": serializer.validated_data.get("first_name", ""),
+                "last_name": serializer.validated_data.get("last_name", ""),
+                "mobile_no": serializer.validated_data.get("mobile_no", ""),
+                "profile_pic": request.FILES.get("profile_pic"),
+            }
         )
 
+        if not created:
+            return Response(
+                {"status": "error", "message": "Pending user already exists. Please verify OTP or wait before retrying."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create OTP
+        otp_code = generate_otp()
+        otp = EmailOTP.objects.create(
+            email=pending_user.email,
+            code=otp_code,
+            purpose="registration",
+            expires_at=timezone.now() + timedelta(minutes=10)
+        )
+
+        # Send OTP email
         send_otp_email(pending_user.email, otp.code, "verification")
 
         return Response(
             {"status": "success", "message": "OTP sent successfully.", "email": pending_user.email},
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_201_CREATED
         )
-
 
 # -------------------------------------------------------------------
 # Login
