@@ -13,7 +13,7 @@ This module implements the authentication and user management API endpoints, inc
 """
 
 from typing import Optional
-
+from datetime import timedelta 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
@@ -122,8 +122,9 @@ class RegisterView(generics.GenericAPIView):
             email=pending_user.email,
             code=generate_otp(),
             purpose="registration",
-            expires_at=timezone.now() + timezone.timedelta(minutes=10),
+            expires_at=timezone.now() + timedelta(minutes=10),  # ✅ FIXED
         )
+
         send_otp_email(pending_user.email, otp.code, "verification")
 
         return Response(
@@ -323,26 +324,45 @@ class ResendOTPView(APIView):
     Resend OTP to pending or inactive accounts with cooldown.
     """
     permission_classes = [AllowAny]
-    COOLDOWN_SECONDS = 60
+    COOLDOWN_SECONDS = 60  # 1-minute cooldown
 
     def post(self, request):
         email = request.data.get("email")
         if not email:
-            return Response({"status": "error", "message": "Email is required."}, status=400)
+            return Response(
+                {"status": "error", "message": "Email is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        last_otp = EmailOTP.objects.filter(email=email, purpose="registration").order_by("-created_at").first()
+        # Check if user recently requested an OTP
+        last_otp = EmailOTP.objects.filter(
+            email=email, purpose="registration"
+        ).order_by("-created_at").first()
+
         if last_otp and (timezone.now() - last_otp.created_at).total_seconds() < self.COOLDOWN_SECONDS:
             wait = int(self.COOLDOWN_SECONDS - (timezone.now() - last_otp.created_at).total_seconds())
-            return Response({"status": "error", "message": f"Wait {wait}s before requesting another OTP."}, status=429)
+            return Response(
+                {"status": "error", "message": f"Wait {wait}s before requesting another OTP."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
 
+        # Delete old OTPs and create a new one
         EmailOTP.objects.filter(email=email, purpose="registration").delete()
+
         otp_code = generate_otp()
         EmailOTP.objects.create(
-            email=email, code=otp_code, purpose="registration",
-            expires_at=timezone.now() + timezone.timedelta(minutes=10)
+            email=email,
+            code=otp_code,
+            purpose="registration",
+            expires_at=timezone.now() + timedelta(minutes=10)  # ✅ FIXED
         )
+
         send_otp_email(email, otp_code, "verification")
-        return Response({"status": "success", "message": "OTP resent."}, status=200)
+        return Response(
+            {"status": "success", "message": "OTP resent successfully."},
+            status=status.HTTP_200_OK
+        )
+
 
 
 # -------------------------------------------------------------------
@@ -351,28 +371,55 @@ class ResendOTPView(APIView):
 
 class SendPasswordResetOTPView(APIView):
     """
-    Send OTP for password reset.
+    Send OTP for password reset with cooldown protection.
     """
     permission_classes = [AllowAny]
-    COOLDOWN_SECONDS = 60
+    COOLDOWN_SECONDS = 60  # 1-minute cooldown
 
     def post(self, request):
         email = request.data.get("email")
         if not email:
-            return Response({"status": "error", "message": "Email is required."}, status=400)
+            return Response(
+                {"status": "error", "message": "Email is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             user = CustomUser.objects.get(email=email)
         except CustomUser.DoesNotExist:
-            return Response({"status": "error", "message": "User not found."}, status=404)
+            return Response(
+                {"status": "error", "message": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
+        # Check cooldown
+        last_otp = EmailOTP.objects.filter(
+            email=email, purpose="password_reset"
+        ).order_by("-created_at").first()
+
+        if last_otp and (timezone.now() - last_otp.created_at).total_seconds() < self.COOLDOWN_SECONDS:
+            wait = int(self.COOLDOWN_SECONDS - (timezone.now() - last_otp.created_at).total_seconds())
+            return Response(
+                {"status": "error", "message": f"Wait {wait}s before requesting another OTP."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        # Create new OTP
         otp_code = generate_otp()
         EmailOTP.objects.create(
-            user=user, email=email, code=otp_code, purpose="password_reset",
-            expires_at=timezone.now() + timezone.timedelta(minutes=10)
+            user=user,
+            email=email,
+            code=otp_code,
+            purpose="password_reset",
+            expires_at=timezone.now() + timedelta(minutes=10)  # ✅ FIXED
         )
+
         send_otp_email(email, otp_code, "password_reset")
-        return Response({"status": "success", "message": "OTP sent."}, status=200)
+        return Response(
+            {"status": "success", "message": "Password reset OTP sent."},
+            status=status.HTTP_200_OK
+        )
+
 
 
 class VerifyPasswordResetOTPView(APIView):
