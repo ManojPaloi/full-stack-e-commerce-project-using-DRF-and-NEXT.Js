@@ -11,4 +11,4 @@ urlpatterns = [
     path("fast-banners/<int:pk>/", FastBannerDetailView.as_view(), name="fast-banner-detail"),
     path("second-banners/", SecondBannerListCreateView.as_view(), name="second-banner-list"),
     path("second-banners/<int:pk>/", SecondBannerDetailView.as_view(), name="second-banner-detail"),
-]
+] 

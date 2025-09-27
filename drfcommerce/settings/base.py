@@ -2,6 +2,14 @@
 settings/base.py
 ================
 Base Django settings for DRF e-commerce project.
+
+Includes:
+- Environment variable loading
+- Installed apps & middleware
+- REST framework & JWT config
+- Static & media files
+- Email and CORS settings
+- Jazzmin admin UI customization
 """
 
 import os
@@ -47,17 +55,13 @@ INSTALLED_APPS = [
     "django_filters",
     "rest_framework_simplejwt",
     "corsheaders",
-
-    # ✅ Cloudinary for Media Storage
-    "cloudinary",
-    "cloudinary_storage",
 ]
 
 # -------------------------------------------------------------------
 # ✅ Middleware
 # -------------------------------------------------------------------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # Must be first
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -102,7 +106,7 @@ ROOT_URLCONF = "drfcommerce.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [],  # Custom template directories
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -154,15 +158,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# ✅ Use Cloudinary for media storage
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
-
-CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME", "your_cloud_name"),
-    "API_KEY": os.getenv("CLOUDINARY_API_KEY", "your_api_key"),
-    "API_SECRET": os.getenv("CLOUDINARY_API_SECRET", "your_api_secret"),
-}
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # -------------------------------------------------------------------
@@ -170,7 +165,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # -------------------------------------------------------------------
 AUTH_USER_MODEL = "accounts.CustomUser"
 AUTHENTICATION_BACKENDS = [
-    "accounts.backends.EmailOrUsernameModelBackend",
+    "accounts.backends.EmailOrUsernameModelBackend",  # Custom auth by email/username
     "django.contrib.auth.backends.ModelBackend",
 ]
 
@@ -192,7 +187,7 @@ REST_FRAMEWORK = {
 }
 
 # -------------------------------------------------------------------
-# SimpleJWT
+# SimpleJWT with Cookie Support
 # -------------------------------------------------------------------
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
@@ -220,7 +215,7 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 
 # -------------------------------------------------------------------
-# Jazzmin Admin UI
+# Jazzmin Admin UI Tweaks
 # -------------------------------------------------------------------
 JAZZMIN_UI_TWEAKS = {
     "theme": "darkly",

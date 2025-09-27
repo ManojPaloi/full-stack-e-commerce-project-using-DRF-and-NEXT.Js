@@ -1,3 +1,5 @@
+# drfcommerce/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.response import Response
@@ -21,36 +23,36 @@ def api_root(request, format=None):
         "category": request.build_absolute_uri("category/"),
         "banners": request.build_absolute_uri("banners/"), 
         "products": request.build_absolute_uri("products/"),
-        "oders": request.build_absolute_uri("oders/"), 
+        "orders": request.build_absolute_uri("orders/"), 
         "coupons": request.build_absolute_uri("coupons/"),
-
     })
 
 urlpatterns = [
+    # i18n
     path('i18n/', include('django.conf.urls.i18n')),
 
-    # ✅ Django admin panel
+    # Django admin panel
     path("admin/", admin.site.urls),
 
-    # ✅ API root overview
+    # API root overview
     path("api/", api_root, name="api-root"),
 
-    # ✅ Browsable API login/logout
+    # Browsable API login/logout
     path("api-auth/", include("rest_framework.urls")),
 
-    # ✅ Application endpoints
+    # Application endpoints
+# Application endpoints
     path("api/accounts/", include("accounts.urls")),
     path("api/category/", include("category.urls")),
-    path("api/banners/", include("banner.urls")),
+    path("api/banners/", include("banner.urls")),  # fixed
     path("api/products/", include("products.urls")),
-    path("api/orders/", include("oders.urls")),
     path("api/oders/", include("oders.urls")),
     path("api/coupons/", include("coupons.urls")),
+
 
     # Optional: DRF router endpoints (if using viewsets)
     # path("api/", include(router.urls)),
 ]
 
-# ✅ Serve media files in development
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# ✅ Serve media files (production + development)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
