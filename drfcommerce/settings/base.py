@@ -149,20 +149,21 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# ----------------------------
-# Static & Media Settings
-# ----------------------------
+# -------------------------------------------------------------------
+# Static & Media
+# -------------------------------------------------------------------
 
-# Media files (Persistent disk)
+MEDIA_ROOT = "/media"
 MEDIA_URL = "/media/"
-MEDIA_ROOT = "/media"  # Render persistent disk mount point
 
-# Static files
+
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # -------------------------------------------------------------------
 # Custom User Model
