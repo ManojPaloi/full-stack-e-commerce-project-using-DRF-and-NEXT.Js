@@ -18,15 +18,29 @@ class FastBannerListCreateView(generics.ListCreateAPIView):
     queryset = FastBanner.objects.all()
     serializer_class = FastBannerSerializer
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
 class FastBannerDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = FastBanner.objects.all()
     serializer_class = FastBannerSerializer
 
-# SecondBanner Views
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
 class SecondBannerListCreateView(generics.ListCreateAPIView):
     queryset = SecondBanner.objects.all()
     serializer_class = SecondBannerSerializer
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
 class SecondBannerDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = SecondBanner.objects.all()
     serializer_class = SecondBannerSerializer
+
+    def get_serializer_context(self):
+        return {'request': self.request}

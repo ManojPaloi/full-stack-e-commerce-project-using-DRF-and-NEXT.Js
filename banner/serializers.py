@@ -3,7 +3,7 @@ from .models import FastBanner, SecondBanner
 
 class FastBannerSerializer(serializers.ModelSerializer):
     category = serializers.StringRelatedField()  # Returns category name
-    images = serializers.SerializerMethodField()  # Returns list of image URLs
+    images = serializers.SerializerMethodField()  # Returns list of full image URLs
 
     class Meta:
         model = FastBanner
@@ -17,9 +17,14 @@ class FastBannerSerializer(serializers.ModelSerializer):
         ]
 
     def get_images(self, obj):
+        request = self.context.get('request')  # get request context
         if obj.image:
-            return [obj.image.url]  # wrap single image in a list
+            url = obj.image.url
+            if request:
+                url = request.build_absolute_uri(url)
+            return [url]  # wrap single image in a list
         return []
+
 
 class SecondBannerSerializer(serializers.ModelSerializer):
     category = serializers.StringRelatedField()
@@ -37,6 +42,10 @@ class SecondBannerSerializer(serializers.ModelSerializer):
         ]
 
     def get_images(self, obj):
+        request = self.context.get('request')
         if obj.image:
-            return [obj.image.url]
+            url = obj.image.url
+            if request:
+                url = request.build_absolute_uri(url)
+            return [url]
         return []
