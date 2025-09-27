@@ -149,13 +149,13 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# -------------------------------------------------------------------
-# Static & Media
-# -------------------------------------------------------------------
+# ----------------------------
+# Static & Media Settings
+# ----------------------------
 
-# Media files
+# Media files (Persistent disk)
 MEDIA_URL = "/media/"
-MEDIA_ROOT = "/media"  # Persistent disk mount on Render
+MEDIA_ROOT = "/media"  # Render persistent disk mount point
 
 # Static files
 STATIC_URL = "/static/"

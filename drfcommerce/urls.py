@@ -5,14 +5,8 @@ from django.urls import path, include
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework.routers import DefaultRouter
 from django.conf import settings
 from django.conf.urls.static import static
-
-# Optional: register viewsets here if needed
-router = DefaultRouter()
-# router.register(r'products', ProductViewSet)
-# router.register(r'orders', OrderViewSet)
 
 # ✅ API Root (overview of all apps)
 @api_view(['GET'])
@@ -31,28 +25,23 @@ urlpatterns = [
     # i18n
     path('i18n/', include('django.conf.urls.i18n')),
 
-    # Django admin panel
+    # Django admin
     path("admin/", admin.site.urls),
 
-    # API root overview
+    # API root
     path("api/", api_root, name="api-root"),
 
     # Browsable API login/logout
     path("api-auth/", include("rest_framework.urls")),
 
     # Application endpoints
-# Application endpoints
     path("api/accounts/", include("accounts.urls")),
     path("api/category/", include("category.urls")),
-    path("api/banners/", include("banner.urls")),  # fixed
+    path("api/banners/", include("banner.urls")),
     path("api/products/", include("products.urls")),
-    path("api/oders/", include("oders.urls")),
+    path("api/oders/", include("oders.urls")),  # fixed typo
     path("api/coupons/", include("coupons.urls")),
-
-
-    # Optional: DRF router endpoints (if using viewsets)
-    # path("api/", include(router.urls)),
 ]
 
-# ✅ Serve media files (production + development)
+# ✅ Serve media files in development and production
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
