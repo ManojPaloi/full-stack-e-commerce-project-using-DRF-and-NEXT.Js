@@ -152,13 +152,17 @@ USE_TZ = True
 # -------------------------------------------------------------------
 # Static & Media
 # -------------------------------------------------------------------
+
+# Media files
+MEDIA_URL = "/media/"
+MEDIA_ROOT = "/media"  # Persistent disk mount on Render
+
+# Static files
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
 
 # -------------------------------------------------------------------
 # Custom User Model
