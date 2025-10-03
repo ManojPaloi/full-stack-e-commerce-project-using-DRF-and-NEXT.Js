@@ -19,11 +19,8 @@ DATABASES = {
 # Allowed Hosts
 # ------------------------
 # Add your Render domain for testing remote frontend integration
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "e-commerce-api-a5il.onrender.com",  # ✅ Allow your hosted backend to work with the local frontend
-]
+ALLOWED_HOSTS = ['16.170.158.228', '127.0.0.1', 'localhost']
+
 
 # ------------------------
 # Security (Local Dev)
