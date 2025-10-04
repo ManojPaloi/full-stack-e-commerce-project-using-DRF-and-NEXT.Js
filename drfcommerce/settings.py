@@ -1,37 +1,37 @@
 """
-settings/base.py
-================
-Base Django settings for DRF e-commerce project.
-
-Includes:
-- Environment variable loading
-- Installed apps & middleware
-- REST framework & JWT config
-- Static & media files
-- Email and CORS settings
-- Jazzmin admin UI customization
+Django settings for drfcommerce project.
+Unified from base.py, local.py, and production.py
 """
 
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 from corsheaders.defaults import default_headers
 
 # -------------------------------------------------------------------
-# ✅ Load environment variables
+# Load environment variables
 # -------------------------------------------------------------------
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# -------------------------------------------------------------------
+# Security & Debug
+# -------------------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
-DEBUG = os.getenv("DEBUG", "True") == "True"
-ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
+ALLOWED_HOSTS = [host.strip() for host in os.getenv(
+    "ALLOWED_HOSTS", "127.0.0.1,localhost"
+).split(",")]
+
+# Detect if running manage.py runserver
+IS_RUNSERVER = "runserver" in sys.argv
 
 # -------------------------------------------------------------------
-# ✅ Installed Apps
+# Installed Apps
 # -------------------------------------------------------------------
 INSTALLED_APPS = [
     # Admin
@@ -59,10 +59,10 @@ INSTALLED_APPS = [
 ]
 
 # -------------------------------------------------------------------
-# ✅ Middleware
+# Middleware
 # -------------------------------------------------------------------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # Must be first
+    "corsheaders.middleware.CorsMiddleware",  # must be first
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -73,41 +73,14 @@ MIDDLEWARE = [
 ]
 
 # -------------------------------------------------------------------
-# 🌐 CORS Settings
-# -------------------------------------------------------------------
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = False
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^http://localhost:\d+$",
-    r"^http://127\.0\.0\.1:\d+$",
-]
-
-CORS_ALLOW_HEADERS = list(default_headers) + ["x-csrftoken"]
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
-# -------------------------------------------------------------------
-# URL & WSGI
+# URL & Templates
 # -------------------------------------------------------------------
 ROOT_URLCONF = "drfcommerce.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],  # Custom template directories
+        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -125,15 +98,29 @@ WSGI_APPLICATION = "drfcommerce.wsgi.application"
 # -------------------------------------------------------------------
 # Database
 # -------------------------------------------------------------------
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.sqlite3")
+
+if DB_ENGINE == "django.db.backends.sqlite3":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / os.getenv("DB_NAME", "db.sqlite3"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": DB_ENGINE,
+            "NAME": os.getenv("DB_NAME"),
+            "USER": os.getenv("DB_USER"),
+            "PASSWORD": os.getenv("DB_PASSWORD"),
+            "HOST": os.getenv("DB_HOST"),
+            "PORT": os.getenv("DB_PORT"),
+        }
+    }
 
 # -------------------------------------------------------------------
-# Password validation
+# Password Validation
 # -------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -153,12 +140,6 @@ USE_TZ = True
 # -------------------------------------------------------------------
 # Static & Media
 # -------------------------------------------------------------------
-
-MEDIA_URL = "/media/"
-MEDIA_ROOT = "/media"
-
-
-
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -168,11 +149,11 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # -------------------------------------------------------------------
-# Custom User Model
+# Authentication
 # -------------------------------------------------------------------
 AUTH_USER_MODEL = "accounts.CustomUser"
 AUTHENTICATION_BACKENDS = [
-    "accounts.backends.EmailOrUsernameModelBackend",  # Custom auth by email/username
+    "accounts.backends.EmailOrUsernameModelBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
@@ -186,18 +167,18 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
-    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
 }
 
 # -------------------------------------------------------------------
-# SimpleJWT with Cookie Support
+# Simple JWT
 # -------------------------------------------------------------------
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("ACCESS_TOKEN_MIN", "5"))),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -206,19 +187,56 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_COOKIE": "refresh_token",
     "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_SECURE": False if DEBUG else True,
-    "AUTH_COOKIE_SAMESITE": "Lax" if DEBUG else "None",
+    "AUTH_COOKIE_SECURE": False if DEBUG or IS_RUNSERVER else True,
+    "AUTH_COOKIE_SAMESITE": "Lax" if DEBUG or IS_RUNSERVER else "None",
 }
 
 # -------------------------------------------------------------------
-# Email Settings
+# CORS & CSRF
+# -------------------------------------------------------------------
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = DEBUG or IS_RUNSERVER
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    f"http://{os.getenv('SERVER_IP', '13.49.70.126')}:8000"
+]
+
+CORS_ALLOW_HEADERS = list(default_headers) + ["x-csrftoken"]
+
+# -------------------------------------------------------------------
+# Security
+# -------------------------------------------------------------------
+SECURE_SSL_REDIRECT = False if DEBUG or IS_RUNSERVER else True
+CSRF_COOKIE_SECURE = False if DEBUG or IS_RUNSERVER else True
+SESSION_COOKIE_SECURE = False if DEBUG or IS_RUNSERVER else True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_HSTS_SECONDS = 0 if DEBUG or IS_RUNSERVER else 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False if DEBUG or IS_RUNSERVER else True
+SECURE_HSTS_PRELOAD = False if DEBUG or IS_RUNSERVER else True
+SECURE_REFERRER_POLICY = "strict-origin"
+X_FRAME_OPTIONS = "DENY"
+
+# -------------------------------------------------------------------
+# Email
 # -------------------------------------------------------------------
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 
 # -------------------------------------------------------------------
@@ -236,10 +254,6 @@ JAZZMIN_UI_TWEAKS = {
         "secondary": "btn btn-outline-secondary rounded-pill",
     },
     "sidebar_nav_small_text": True,
-    "sidebar_disable_expand": False,
     "footer_fixed": True,
     "navbar_fixed": True,
-    "layout_boxed": False,
-    "actions_sticky_top": True,
-    "show_ui_builder": False,
 }
