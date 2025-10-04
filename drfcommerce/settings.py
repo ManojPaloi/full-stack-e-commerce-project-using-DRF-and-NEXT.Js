@@ -23,9 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = [host.strip() for host in os.getenv(
-    "ALLOWED_HOSTS", "127.0.0.1,localhost"
-).split(",")]
+ALLOWED_HOSTS = ["*"]
 
 # Detect if running manage.py runserver
 IS_RUNSERVER = "runserver" in sys.argv
