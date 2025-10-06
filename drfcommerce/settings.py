@@ -21,9 +21,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security & Debug
 # -------------------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
-DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+DEBUG = False  # Always False in production
+ALLOWED_HOSTS = [os.getenv("SERVER_IP", "13.60.200.77")]  # Replace with your EC2 public IP or domain
 
-ALLOWED_HOSTS = ["*"]
 
 # Detect if running manage.py runserver
 IS_RUNSERVER = "runserver" in sys.argv
@@ -136,15 +136,16 @@ USE_I18N = True
 USE_TZ = True
 
 # -------------------------------------------------------------------
-# Static & Media
+# Static & Media (production-ready)
 # -------------------------------------------------------------------
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = BASE_DIR / "staticfiles"   # Nginx will serve static files from here
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = BASE_DIR / "media"          # Nginx will serve uploaded media from here
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
 
 # -------------------------------------------------------------------
 # Authentication
@@ -173,7 +174,7 @@ REST_FRAMEWORK = {
 }
 
 # -------------------------------------------------------------------
-# Simple JWT
+# Simple JWT (production-ready)
 # -------------------------------------------------------------------
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("ACCESS_TOKEN_MIN", "5"))),
@@ -185,8 +186,8 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_COOKIE": "refresh_token",
     "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_SECURE": False if DEBUG or IS_RUNSERVER else True,
-    "AUTH_COOKIE_SAMESITE": "Lax" if DEBUG or IS_RUNSERVER else "None",
+    "AUTH_COOKIE_SECURE": True,             # Force secure cookie for HTTPS
+    "AUTH_COOKIE_SAMESITE": "None",         # Required for cross-site usage over HTTPS
 }
 
 # -------------------------------------------------------------------
@@ -195,36 +196,29 @@ SIMPLE_JWT = {
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG or IS_RUNSERVER
 
+CORS_ALLOW_ALL_ORIGINS = False  # Disable wildcard in production
+
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    f"https://{os.getenv('SERVER_IP', '13.60.200.77')}",  # Backend domain/IP
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    f"http://{os.getenv('SERVER_IP', '13.49.70.126')}:8000"
+    f"https://{os.getenv('SERVER_IP', '13.60.200.77')}",
 ]
+
 
 CORS_ALLOW_HEADERS = list(default_headers) + ["x-csrftoken"]
 
 # -------------------------------------------------------------------
 # Security
 # -------------------------------------------------------------------
-SECURE_SSL_REDIRECT = False if DEBUG or IS_RUNSERVER else True
-CSRF_COOKIE_SECURE = False if DEBUG or IS_RUNSERVER else True
-SESSION_COOKIE_SECURE = False if DEBUG or IS_RUNSERVER else True
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_HSTS_SECONDS = 0 if DEBUG or IS_RUNSERVER else 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = False if DEBUG or IS_RUNSERVER else True
-SECURE_HSTS_PRELOAD = False if DEBUG or IS_RUNSERVER else True
-SECURE_REFERRER_POLICY = "strict-origin"
-X_FRAME_OPTIONS = "DENY"
+SECURE_SSL_REDIRECT = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
 
 # -------------------------------------------------------------------
 # Email
