@@ -1,10 +1,4 @@
-"""
-Django settings for drfcommerce project.
-Unified from base.py, local.py, and production.py
-"""
-
 import os
-import sys
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -14,25 +8,19 @@ from corsheaders.defaults import default_headers
 # Load environment variables
 # -------------------------------------------------------------------
 load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # -------------------------------------------------------------------
 # Security & Debug
 # -------------------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
-DEBUG = False  # Always False in production
-ALLOWED_HOSTS = [os.getenv("SERVER_IP", "13.60.200.77")]  # Replace with your EC2 public IP or domain
-
-
-# Detect if running manage.py runserver
-IS_RUNSERVER = "runserver" in sys.argv
+DEBUG = os.getenv("DEBUG", "False").lower() in ["true", "1", "yes"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
 # -------------------------------------------------------------------
 # Installed Apps
 # -------------------------------------------------------------------
 INSTALLED_APPS = [
-    # Admin
     "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -40,27 +28,17 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     # Local apps
-    "accounts",
-    "category",
-    "banner",
-    "products",
-    "oders",
-    "coupons",
-
+    "accounts", "category", "banner", "products", "oders", "coupons",
     # Third-party apps
-    "rest_framework",
-    "django_filters",
-    "rest_framework_simplejwt",
-    "corsheaders",
+    "rest_framework", "django_filters", "rest_framework_simplejwt", "corsheaders",
 ]
 
 # -------------------------------------------------------------------
 # Middleware
 # -------------------------------------------------------------------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # must be first
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -97,7 +75,6 @@ WSGI_APPLICATION = "drfcommerce.wsgi.application"
 # Database
 # -------------------------------------------------------------------
 DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.sqlite3")
-
 if DB_ENGINE == "django.db.backends.sqlite3":
     DATABASES = {
         "default": {
@@ -118,7 +95,7 @@ else:
     }
 
 # -------------------------------------------------------------------
-# Password Validation
+# Password validation
 # -------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -136,16 +113,13 @@ USE_I18N = True
 USE_TZ = True
 
 # -------------------------------------------------------------------
-# Static & Media (production-ready)
+# Static & Media
 # -------------------------------------------------------------------
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"   # Nginx will serve static files from here
-
+STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"          # Nginx will serve uploaded media from here
-
+MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
 
 # -------------------------------------------------------------------
 # Authentication
@@ -174,7 +148,7 @@ REST_FRAMEWORK = {
 }
 
 # -------------------------------------------------------------------
-# Simple JWT (production-ready)
+# Simple JWT
 # -------------------------------------------------------------------
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("ACCESS_TOKEN_MIN", "5"))),
@@ -186,39 +160,37 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_COOKIE": "refresh_token",
     "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_SECURE": True,             # Force secure cookie for HTTPS
-    "AUTH_COOKIE_SAMESITE": "None",         # Required for cross-site usage over HTTPS
+    "AUTH_COOKIE_SECURE": not DEBUG,
+    "AUTH_COOKIE_SAMESITE": "None" if not DEBUG else "Lax",
 }
 
 # -------------------------------------------------------------------
 # CORS & CSRF
 # -------------------------------------------------------------------
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = DEBUG or IS_RUNSERVER
-
-CORS_ALLOW_ALL_ORIGINS = False  # Disable wildcard in production
-
-CORS_ALLOWED_ORIGINS = [
-    f"https://{os.getenv('SERVER_IP', '13.60.200.77')}",  # Backend domain/IP
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    f"https://{os.getenv('SERVER_IP', '13.60.200.77')}",
-]
-
-
 CORS_ALLOW_HEADERS = list(default_headers) + ["x-csrftoken"]
+
+if DEBUG:
+    # Development
+    CORS_ALLOW_ALL_ORIGINS = True
+    CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:8000"]
+else:
+    # Production
+    CORS_ALLOW_ALL_ORIGINS = False
+    SERVER_IP = os.getenv("SERVER_IP", "13.60.200.77")
+    CORS_ALLOWED_ORIGINS = [f"https://{SERVER_IP}"]
+    CSRF_TRUSTED_ORIGINS = [f"https://{SERVER_IP}"]
 
 # -------------------------------------------------------------------
 # Security
 # -------------------------------------------------------------------
-SECURE_SSL_REDIRECT = True
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+SECURE_SSL_REDIRECT = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
 
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
 
 # -------------------------------------------------------------------
 # Email
