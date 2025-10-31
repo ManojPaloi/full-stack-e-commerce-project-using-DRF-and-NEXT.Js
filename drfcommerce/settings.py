@@ -170,16 +170,20 @@ SIMPLE_JWT = {
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + ["x-csrftoken"]
 
-if DEBUG:
-    # Development
-    CORS_ALLOW_ALL_ORIGINS = True
-    CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:8000"]
-else:
-    # Production
-    CORS_ALLOW_ALL_ORIGINS = False
-    SERVER_IP = os.getenv("SERVER_IP", "13.60.200.77")
-    CORS_ALLOWED_ORIGINS = [f"https://{SERVER_IP}"]
-    CSRF_TRUSTED_ORIGINS = [f"https://{SERVER_IP}"]
+SERVER_IP = os.getenv("SERVER_IP", "13.49.70.126")
+
+CORS_ALLOWED_ORIGINS = [
+    f"https://{SERVER_IP}",
+    f"http://{SERVER_IP}",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{SERVER_IP}",
+    f"http://{SERVER_IP}",
+]
+
+CORS_ALLOW_ALL_ORIGINS = False
+
 
 # -------------------------------------------------------------------
 # Security
