@@ -180,7 +180,10 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     f"https://{SERVER_IP}",
     f"http://{SERVER_IP}",
+    "http://localhost:3000",
+    "https://localhost:3000",
 ]
+
 
 CORS_ALLOW_ALL_ORIGINS = False
 
