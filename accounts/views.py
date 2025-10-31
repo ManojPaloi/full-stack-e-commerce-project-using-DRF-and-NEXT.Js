@@ -138,7 +138,7 @@ class RegisterView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Create OTP
+        # Create OTP (valid for 10 minutes)
         otp_code = generate_otp()
         otp = EmailOTP.objects.create(
             email=pending_user.email,
