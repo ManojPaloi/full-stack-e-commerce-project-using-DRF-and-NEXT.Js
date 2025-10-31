@@ -99,10 +99,6 @@ class RegisterView(generics.GenericAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
-    # cooldown between OTP sends (seconds) and otp expiry (minutes)
-    COOLDOWN_SECONDS = 60
-    OTP_EXPIRY_MINUTES = 10
-
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -114,90 +110,53 @@ class RegisterView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        email = serializer.validated_data["email"].lower().strip()
-
-        # Hash incoming password for storage in PendingUser
+        # Hash password
+        from django.contrib.auth.hashers import make_password
         password_hashed = make_password(serializer.validated_data["password"])
 
-        # Try to get existing pending user
+        # Create or get PendingUser
         try:
-            pending = PendingUser.objects.filter(email=email).first()
-        except Exception as e:
-            pending = None
-
-        # Find the most recent registration OTP (if any)
-        last_otp = EmailOTP.objects.filter(email=email, purpose="registration").order_by("-created_at").first()
-
-        # If there's an active OTP (not used and not expired), ask user to verify instead of resending
-        if last_otp and not last_otp.is_used and not last_otp.is_expired():
-            # seconds remaining until expiry
-            remaining_seconds = int((last_otp.expires_at - timezone.now()).total_seconds())
-            if remaining_seconds > 0:
-                return Response(
-                    {
-                        "status": "error",
-                        "message": f"OTP already sent. Please verify it. Expires in {remaining_seconds}s."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        # If last_otp exists but cooldown hasn't passed, enforce cooldown
-        if last_otp and (timezone.now() - last_otp.created_at).total_seconds() < self.COOLDOWN_SECONDS:
-            wait = int(self.COOLDOWN_SECONDS - (timezone.now() - last_otp.created_at).total_seconds())
-            return Response(
-                {"status": "error", "message": f"Wait {wait}s before requesting another OTP."},
-                status=status.HTTP_429_TOO_MANY_REQUESTS
+            pending_user, created = PendingUser.objects.get_or_create(
+                email=serializer.validated_data["email"],
+                defaults={
+                    "password": password_hashed,
+                    "first_name": serializer.validated_data.get("first_name", ""),
+                    "last_name": serializer.validated_data.get("last_name", ""),
+                    "mobile_no": serializer.validated_data.get("mobile_no", ""),
+                    "profile_pic": request.FILES.get("profile_pic"),
+                }
             )
-
-        # Create or update pending user
-        try:
-            if not pending:
-                pending = PendingUser.objects.create(
-                    email=email,
-                    password=password_hashed,
-                    first_name=serializer.validated_data.get("first_name", ""),
-                    last_name=serializer.validated_data.get("last_name", ""),
-                    mobile_no=serializer.validated_data.get("mobile_no", ""),
-                    profile_pic=request.FILES.get("profile_pic"),
-                )
-            else:
-                # Update fields so the latest provided data will be used when user verifies
-                pending.password = password_hashed
-                pending.first_name = serializer.validated_data.get("first_name", pending.first_name or "")
-                pending.last_name = serializer.validated_data.get("last_name", pending.last_name or "")
-                pending.mobile_no = serializer.validated_data.get("mobile_no", pending.mobile_no or "")
-                if request.FILES.get("profile_pic"):
-                    pending.profile_pic = request.FILES.get("profile_pic")
-                pending.save()
         except IntegrityError as e:
             return Response(
-                {"status": "error", "message": f"Could not create/update pending user: {str(e)}"},
+                {"status": "error", "message": f"Could not create pending user: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Remove old registration OTPs (optional safety) and create a fresh one
-        EmailOTP.objects.filter(email=email, purpose="registration").delete()
+        if not created:
+            return Response(
+                {"status": "error", "message": "Pending user already exists. Please verify OTP or wait before retrying."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        # Create OTP
         otp_code = generate_otp()
         otp = EmailOTP.objects.create(
-            email=email,
+            email=pending_user.email,
             code=otp_code,
             purpose="registration",
-            expires_at=timezone.now() + timedelta(minutes=self.OTP_EXPIRY_MINUTES)
+            expires_at=timezone.now() + timedelta(minutes=10)
         )
 
-        # send otp asynchronously
+        # Send OTP safely
         try:
-            send_email_async(email, otp.code)
+            send_otp_email(pending_user.email, otp.code, "verification")
         except Exception as e:
-            # don't expose internal error details to user; log or print for debugging
             print("Email sending failed:", e)
 
         return Response(
-            {"status": "success", "message": "OTP sent successfully.", "email": pending.email},
+            {"status": "success", "message": "OTP sent successfully.", "email": pending_user.email},
             status=status.HTTP_201_CREATED
         )
-
 
 
 # -------------------------------------------------------------------
@@ -386,41 +345,25 @@ class VerifyOTPView(APIView):
         return response
 
 
-
 class ResendOTPView(APIView):
     """
     Resend OTP to pending or inactive accounts with cooldown.
-    (Improved: requires PendingUser to exist; honors cooldown and OTP expiry)
     """
     permission_classes = [AllowAny]
     COOLDOWN_SECONDS = 60  # 1-minute cooldown
-    OTP_EXPIRY_MINUTES = 10
 
     def post(self, request):
-        email = (request.data.get("email") or "").lower().strip()
+        email = request.data.get("email")
         if not email:
             return Response(
                 {"status": "error", "message": "Email is required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Make sure a pending registration exists
-        pending = PendingUser.objects.filter(email=email).first()
-        if not pending:
-            return Response(
-                {"status": "error", "message": "No pending registration found. Please register first."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Look for last OTP and check cooldown
-        last_otp = EmailOTP.objects.filter(email=email, purpose="registration").order_by("-created_at").first()
-
-        if last_otp and not last_otp.is_used and not last_otp.is_expired():
-            remaining_seconds = int((last_otp.expires_at - timezone.now()).total_seconds())
-            return Response(
-                {"status": "error", "message": f"OTP already sent. Please verify it. Expires in {remaining_seconds}s."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Check if user recently requested an OTP
+        last_otp = EmailOTP.objects.filter(
+            email=email, purpose="registration"
+        ).order_by("-created_at").first()
 
         if last_otp and (timezone.now() - last_otp.created_at).total_seconds() < self.COOLDOWN_SECONDS:
             wait = int(self.COOLDOWN_SECONDS - (timezone.now() - last_otp.created_at).total_seconds())
@@ -437,19 +380,15 @@ class ResendOTPView(APIView):
             email=email,
             code=otp_code,
             purpose="registration",
-            expires_at=timezone.now() + timedelta(minutes=self.OTP_EXPIRY_MINUTES)
+            expires_at=timezone.now() + timedelta(minutes=10)  # ✅ FIXED
         )
 
-        # Send email async
-        try:
-            send_email_async(email, otp_code)
-        except Exception as e:
-            print("Resend email failed:", e)
-
+        send_otp_email(email, otp_code, "verification")
         return Response(
             {"status": "success", "message": "OTP resent successfully."},
             status=status.HTTP_200_OK
         )
+
 
 
 # -------------------------------------------------------------------
