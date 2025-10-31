@@ -5,10 +5,11 @@ from dotenv import load_dotenv
 from corsheaders.defaults import default_headers
 
 # -------------------------------------------------------------------
-# Load environment variables
+# Base dir & load environment variables (explicit path)
 # -------------------------------------------------------------------
-load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Ensure we load the .env file from the project BASE_DIR so systemd/gunicorn picks it up
+load_dotenv(str(BASE_DIR / ".env"))
 
 # -------------------------------------------------------------------
 # Security & Debug
@@ -188,8 +189,6 @@ CSRF_TRUSTED_ORIGINS = [
 
 CORS_ALLOW_ALL_ORIGINS = False
 
-
-
 # -------------------------------------------------------------------
 # Security
 # -------------------------------------------------------------------
@@ -230,3 +229,20 @@ JAZZMIN_UI_TWEAKS = {
     "footer_fixed": True,
     "navbar_fixed": True,
 }
+
+# --- DEBUG LOG (remove after debugging) -----------------------
+# These logs will show up in gunicorn/journalctl to confirm the loaded values.
+# Remove this block after you confirm the CORS/CSRF values are correct.
+import logging
+logger = logging.getLogger("django")
+
+logger.error("=== Django settings debug start ===")
+try:
+    logger.error("CORS_ALLOWED_ORIGINS => %s", CORS_ALLOWED_ORIGINS)
+    logger.error("CSRF_TRUSTED_ORIGINS => %s", CSRF_TRUSTED_ORIGINS)
+    logger.error("DEBUG => %s", DEBUG)
+    logger.error("ALLOWED_HOSTS => %s", ALLOWED_HOSTS)
+except Exception as e:
+    logger.error("Error printing settings debug: %s", e)
+logger.error("=== Django settings debug end ===")
+# --------------------------------------------------------------
