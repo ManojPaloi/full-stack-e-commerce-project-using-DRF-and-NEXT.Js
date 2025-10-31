@@ -110,14 +110,28 @@ class RegisterView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Hash password
         from django.contrib.auth.hashers import make_password
         password_hashed = make_password(serializer.validated_data["password"])
+        email = serializer.validated_data["email"]
 
-        # Create or get PendingUser
+        # 🧹 Delete expired pending users and OTPs before creating new one
+        EmailOTP.objects.filter(
+            email=email,
+            purpose="registration",
+            expires_at__lt=timezone.now()
+        ).delete()
+
+        # If PendingUser exists but older than 10 min → delete it too
+        existing_pending = PendingUser.objects.filter(email=email).first()
+        if existing_pending:
+            otp = EmailOTP.objects.filter(email=email, purpose="registration").order_by("-created_at").first()
+            if not otp or otp.expires_at < timezone.now():
+                existing_pending.delete()
+
+        # Now safely create a new pending user
         try:
             pending_user, created = PendingUser.objects.get_or_create(
-                email=serializer.validated_data["email"],
+                email=email,
                 defaults={
                     "password": password_hashed,
                     "first_name": serializer.validated_data.get("first_name", ""),
@@ -138,9 +152,9 @@ class RegisterView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Create OTP (valid for 10 minutes)
+        # Create new OTP (valid for 10 minutes)
         otp_code = generate_otp()
-        otp = EmailOTP.objects.create(
+        EmailOTP.objects.create(
             email=pending_user.email,
             code=otp_code,
             purpose="registration",
@@ -149,7 +163,7 @@ class RegisterView(generics.GenericAPIView):
 
         # Send OTP safely
         try:
-            send_otp_email(pending_user.email, otp.code, "verification")
+            send_otp_email(pending_user.email, otp_code, "verification")
         except Exception as e:
             print("Email sending failed:", e)
 
@@ -157,6 +171,7 @@ class RegisterView(generics.GenericAPIView):
             {"status": "success", "message": "OTP sent successfully.", "email": pending_user.email},
             status=status.HTTP_201_CREATED
         )
+
 
 
 # -------------------------------------------------------------------
