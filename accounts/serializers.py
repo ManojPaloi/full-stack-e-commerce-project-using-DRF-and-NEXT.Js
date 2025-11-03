@@ -3,8 +3,15 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
-from .models import CustomUser, EmailOTP
+from django.utils import timezone
+from datetime import timedelta
+from django.core.mail import send_mail
+from django.contrib.auth.hashers import make_password
 import json
+
+# Local imports
+from .models import CustomUser, EmailOTP, PendingUser
+from .views import generate_otp, send_otp_email
 
 User = get_user_model()
 
@@ -40,20 +47,11 @@ class UserSerializer(serializers.ModelSerializer):
 # -------------------------------------------------------------------
 # Register Serializer
 # -------------------------------------------------------------------
-# -------------------------------------------------------------------
-# Register Serializer
-# -------------------------------------------------------------------
-from rest_framework import serializers
-from django.contrib.auth import get_user_model
-from accounts.models import PendingUser, OTP
-from django.utils import timezone
-from datetime import timedelta
-from django.core.mail import send_mail
-
-CustomUser = get_user_model()
-
-
 class RegisterSerializer(serializers.ModelSerializer):
+    """
+    Handles user registration and initial OTP generation.
+    Compatible with EmailOTP and PendingUser flow from views.py
+    """
     password = serializers.CharField(write_only=True, style={"input_type": "password"})
     password2 = serializers.CharField(write_only=True, label="Confirm Password")
     profile_pic = serializers.ImageField(required=False, allow_null=True)
@@ -81,66 +79,61 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     # ------------------------------
-    # CREATE USER (PENDING + OTP)
+    # CREATE PENDING USER + OTP
     # ------------------------------
     def create(self, validated_data):
         validated_data.pop("password2", None)
         profile_pic = validated_data.pop("profile_pic", None)
         email = validated_data.get("email")
 
-        # Check if user already exists
+        # --- Check existing active user ---
         existing_user = CustomUser.objects.filter(email=email).first()
-        if existing_user:
-            if existing_user.is_active:
-                raise serializers.ValidationError(
-                    {"email": "This email is already registered and verified."}
-                )
-            else:
-                # Delete unverified user before creating new one
-                existing_user.delete()
+        if existing_user and existing_user.is_active:
+            raise serializers.ValidationError(
+                {"email": "This email is already registered and verified."}
+            )
 
-        # Create user (inactive until OTP verified)
-        user = CustomUser.objects.create_user(
+        # --- Delete any old pending users or expired OTPs ---
+        EmailOTP.objects.filter(
+            email=email,
+            purpose="registration",
+            expires_at__lt=timezone.now()
+        ).delete()
+
+        PendingUser.objects.filter(email=email).delete()
+
+        # --- Create pending user ---
+        pending_user = PendingUser.objects.create(
+            email=email,
+            password=make_password(validated_data["password"]),
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
-            email=email,
             mobile_no=validated_data.get("mobile_no", ""),
             address=validated_data.get("address", ""),
             pin_code=validated_data.get("pin_code", ""),
-            password=validated_data["password"],
-            is_active=False,
+            profile_pic=profile_pic,
         )
 
-        if profile_pic:
-            user.profile_pic = profile_pic
-            user.save()
-
-        # Generate and save OTP
-        otp_code = OTP.objects.create_otp(user)
-        OTP.objects.filter(user=user).update(
-            expires_at=timezone.now() + timedelta(minutes=5)
+        # --- Create OTP ---
+        otp_code = generate_otp()
+        EmailOTP.objects.create(
+            email=email,
+            code=otp_code,
+            purpose="registration",
+            expires_at=timezone.now() + timedelta(minutes=10),
         )
 
-        # Send email OTP (you can customize)
+        # --- Send OTP via email ---
         try:
-            send_mail(
-                subject="Your OTP Verification Code",
-                message=f"Your OTP code is {otp_code.code}. It expires in 5 minutes.",
-                from_email="no-reply@yourdomain.com",
-                recipient_list=[email],
-                fail_silently=True,
-            )
+            send_otp_email(email, otp_code, "verification", pending_user.first_name)
         except Exception:
-            pass  # fail silently if mail fails
-
-        # Store pending user record
-        PendingUser.objects.update_or_create(user=user)
+            pass  # fail silently if email sending fails
 
         return {
+            "status": "success",
             "message": "OTP sent successfully. Please verify your email to activate your account.",
-            "email": user.email,
+            "email": email,
         }
-
 
 
 # -------------------------------------------------------------------
