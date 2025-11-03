@@ -16,7 +16,7 @@ load_dotenv(str(BASE_DIR / ".env"))
 # -------------------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 DEBUG = os.getenv("DEBUG", "False").lower() in ["true", "1", "yes"]
-ALLOWED_HOSTS = ['13.49.70.126', '*']
+ALLOWED_HOSTS = ['13.49.70.126', 'next-ecommerce.onrender.com', '*']
 
 # -------------------------------------------------------------------
 # Installed Apps
@@ -178,6 +178,7 @@ CORS_ALLOWED_ORIGINS = [
     f"http://{SERVER_IP}",
     "http://localhost:3000",
     "https://localhost:3000",
+    "https://next-ecommerce.onrender.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -185,6 +186,7 @@ CSRF_TRUSTED_ORIGINS = [
     f"http://{SERVER_IP}",
     "http://localhost:3000",
     "https://localhost:3000",
+    "https://next-ecommerce.onrender.com",
 ]
 
 CORS_ALLOW_ALL_ORIGINS = False
