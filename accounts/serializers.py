@@ -3,15 +3,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
-from django.utils import timezone
-from datetime import timedelta
-from django.core.mail import send_mail
-from django.contrib.auth.hashers import make_password
+from .models import CustomUser, EmailOTP
 import json
-
-# Local imports
-from .models import CustomUser, EmailOTP, PendingUser
-from .views import generate_otp, send_otp_email
 
 User = get_user_model()
 
@@ -48,92 +41,39 @@ class UserSerializer(serializers.ModelSerializer):
 # Register Serializer
 # -------------------------------------------------------------------
 class RegisterSerializer(serializers.ModelSerializer):
-    """
-    Handles user registration and initial OTP generation.
-    Compatible with EmailOTP and PendingUser flow from views.py
-    """
-    password = serializers.CharField(write_only=True, style={"input_type": "password"})
+    password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True, label="Confirm Password")
     profile_pic = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = CustomUser
         fields = [
-            "first_name",
-            "last_name",
-            "email",
-            "mobile_no",
-            "address",
-            "pin_code",
-            "password",
-            "password2",
-            "profile_pic",
+            "first_name", "last_name", "email", "mobile_no",
+            "address", "pin_code", "password", "password2", "profile_pic"
         ]
 
-    # ------------------------------
-    # VALIDATE PASSWORDS
-    # ------------------------------
     def validate(self, attrs):
         if attrs.get("password") != attrs.get("password2"):
             raise serializers.ValidationError({"password": "Passwords do not match."})
         return attrs
 
-    # ------------------------------
-    # CREATE PENDING USER + OTP
-    # ------------------------------
     def create(self, validated_data):
         validated_data.pop("password2", None)
         profile_pic = validated_data.pop("profile_pic", None)
-        email = validated_data.get("email")
-
-        # --- Check existing active user ---
-        existing_user = CustomUser.objects.filter(email=email).first()
-        if existing_user and existing_user.is_active:
-            raise serializers.ValidationError(
-                {"email": "This email is already registered and verified."}
-            )
-
-        # --- Delete any old pending users or expired OTPs ---
-        EmailOTP.objects.filter(
-            email=email,
-            purpose="registration",
-            expires_at__lt=timezone.now()
-        ).delete()
-
-        PendingUser.objects.filter(email=email).delete()
-
-        # --- Create pending user ---
-        pending_user = PendingUser.objects.create(
-            email=email,
-            password=make_password(validated_data["password"]),
+        user = CustomUser.objects.create_user(
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
+            email=validated_data["email"],
             mobile_no=validated_data.get("mobile_no", ""),
             address=validated_data.get("address", ""),
             pin_code=validated_data.get("pin_code", ""),
-            profile_pic=profile_pic,
+            password=validated_data["password"],
+            is_active=False,
         )
-
-        # --- Create OTP ---
-        otp_code = generate_otp()
-        EmailOTP.objects.create(
-            email=email,
-            code=otp_code,
-            purpose="registration",
-            expires_at=timezone.now() + timedelta(minutes=10),
-        )
-
-        # --- Send OTP via email ---
-        try:
-            send_otp_email(email, otp_code, "verification", pending_user.first_name)
-        except Exception:
-            pass  # fail silently if email sending fails
-
-        return {
-            "status": "success",
-            "message": "OTP sent successfully. Please verify your email to activate your account.",
-            "email": email,
-        }
+        if profile_pic:
+            user.profile_pic = profile_pic
+            user.save()
+        return user
 
 
 # -------------------------------------------------------------------
