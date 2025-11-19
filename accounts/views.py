@@ -307,6 +307,9 @@ class UserListView(generics.ListAPIView):
 # -------------------------------------------------------------------
 
 class VerifyOTPView(APIView):
+    """
+    Verify registration OTP and activate the user.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -316,11 +319,7 @@ class VerifyOTPView(APIView):
         if not email or not code:
             return Response({"detail": "Email and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        otp = EmailOTP.objects.filter(
-            email=email, code=code,
-            purpose="registration", is_used=False
-        ).first()
-
+        otp = EmailOTP.objects.filter(email=email, code=code, purpose="registration", is_used=False).first()
         if not otp or otp.is_expired():
             return Response({"detail": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -331,47 +330,34 @@ class VerifyOTPView(APIView):
         except PendingUser.DoesNotExist:
             return Response({"detail": "Pending user not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # -----------------------------
-        # ⭐ FIX: create user WITHOUT double hashing password
-        # -----------------------------
-        user = CustomUser.objects.create(
+        user = CustomUser.objects.create_user(
             email=pending.email,
-            password=pending.password,   # already hashed
+            password=pending.password,
             first_name=pending.first_name,
-            last_name=pending.last_name,
             mobile_no=pending.mobile_no,
-            profile_pic=pending.profile_pic,
             is_active=True,
         )
 
         pending.delete()
 
-        # -----------------------------
-        # ⭐ Auto Login After OTP
-        # -----------------------------
         refresh = RefreshToken.for_user(user)
-        access = str(refresh.access_token)
+        access = refresh.access_token
 
         response = Response({
-            "status": "success",
-            "message": "OTP verified successfully. Logged in.",
-            "access": access,
-            "user": UserSerializer(user).data,
+            "detail": "OTP verified successfully.",
+            "access": str(access),
+            "user": {"email": user.email, "username": user.username},
         })
 
-        # set refresh cookie
         response.set_cookie(
-            key=settings.SIMPLE_JWT.get("AUTH_COOKIE", "refresh_token"),
-            value=str(refresh),
+            "refresh_token",
+            str(refresh),
             httponly=True,
-            secure=settings.SIMPLE_JWT.get("AUTH_COOKIE_SECURE", True),
-            samesite=settings.SIMPLE_JWT.get("AUTH_COOKIE_SAMESITE", "None"),
-            max_age=7 * 24 * 60 * 60,
-            path="/",
+            secure=True,
+            samesite="None",
+            max_age=7*24*60*60
         )
-
         return response
-
 
 
 class ResendOTPView(APIView):
