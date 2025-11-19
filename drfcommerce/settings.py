@@ -1,45 +1,81 @@
+"""
+=========================================
+ Django Settings for DRF E-Commerce API
+ AWS EC2 + Next.js (Render) + HTTPS Support
+ CORS + CSRF + JWT + Custom User Backend
+=========================================
+This file includes:
+ - CORS FIX (required for Next.js)
+ - OPTIONS preflight fix
+ - Secure cookie settings for JWT
+ - Allowed IP + Render domain support
+ - FULL documentation for every section
+"""
+
 import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 from corsheaders.defaults import default_headers
 
-# -------------------------------------------------------------------
-# Base dir & load environment variables (explicit path)
-# -------------------------------------------------------------------
+# ===============================================================
+# BASE DIRECTORY & ENV
+# ===============================================================
 BASE_DIR = Path(__file__).resolve().parent.parent
-# Ensure we load the .env file from the project BASE_DIR so systemd/gunicorn picks it up
+
+# Load .env (required for systemd / gunicorn)
 load_dotenv(str(BASE_DIR / ".env"))
 
-# -------------------------------------------------------------------
-# Security & Debug
-# -------------------------------------------------------------------
+# ===============================================================
+# SECURITY
+# ===============================================================
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 DEBUG = os.getenv("DEBUG", "False").lower() in ["true", "1", "yes"]
-ALLOWED_HOSTS = ['13.49.70.126', "next-e-commerce.onrender.com",]
 
-# -------------------------------------------------------------------
-# Installed Apps
-# -------------------------------------------------------------------
+# Backend reachable from:
+#  - Direct EC2 IP
+#  - Next.js Render domain
+ALLOWED_HOSTS = [
+    "13.49.70.126",
+    "next-e-commerce.onrender.com",
+    "*",
+]
+
+# ===============================================================
+# INSTALLED APPS
+# ===============================================================
 INSTALLED_APPS = [
+    # Admin UI
     "jazzmin",
+
+    # Django Core
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # Local apps
-    "accounts", "category", "banner", "products", "oders", "coupons",
-    # Third-party apps
-    "rest_framework", "django_filters", "rest_framework_simplejwt", "corsheaders",
+
+    # Your local apps
+    "accounts",
+    "category",
+    "banner",
+    "products",
+    "oders",
+    "coupons",
+
+    # 3rd-Party
+    "corsheaders",
+    "rest_framework",
+    "django_filters",
+    "rest_framework_simplejwt",
 ]
 
-# -------------------------------------------------------------------
-# Middleware
-# -------------------------------------------------------------------
+# ===============================================================
+# MIDDLEWARE
+# ===============================================================
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # Must be FIRST
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -49,9 +85,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# -------------------------------------------------------------------
-# URL & Templates
-# -------------------------------------------------------------------
+# ===============================================================
+# URL + TEMPLATES
+# ===============================================================
 ROOT_URLCONF = "drfcommerce.urls"
 
 TEMPLATES = [
@@ -72,10 +108,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "drfcommerce.wsgi.application"
 
-# -------------------------------------------------------------------
-# Database
-# -------------------------------------------------------------------
+# ===============================================================
+# DATABASE
+# ===============================================================
 DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.sqlite3")
+
 if DB_ENGINE == "django.db.backends.sqlite3":
     DATABASES = {
         "default": {
@@ -95,9 +132,9 @@ else:
         }
     }
 
-# -------------------------------------------------------------------
-# Password validation
-# -------------------------------------------------------------------
+# ===============================================================
+# PASSWORD VALIDATION
+# ===============================================================
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -105,35 +142,38 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# -------------------------------------------------------------------
-# Internationalization
-# -------------------------------------------------------------------
+# ===============================================================
+# LANGUAGE + TIMEZONE
+# ===============================================================
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# -------------------------------------------------------------------
-# Static & Media
-# -------------------------------------------------------------------
+# ===============================================================
+# STATIC + MEDIA
+# ===============================================================
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# -------------------------------------------------------------------
-# Authentication
-# -------------------------------------------------------------------
+# ===============================================================
+# CUSTOM USER + AUTH BACKENDS
+# ===============================================================
 AUTH_USER_MODEL = "accounts.CustomUser"
+
 AUTHENTICATION_BACKENDS = [
     "accounts.backends.EmailOrUsernameModelBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
-# -------------------------------------------------------------------
-# Django REST Framework
-# -------------------------------------------------------------------
+# ===============================================================
+# DRF SETTINGS
+# ===============================================================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "accounts.authentication.CustomJWTAuthentication",
@@ -142,56 +182,79 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
-    "DEFAULT_RENDERER_CLASSES": [
-        "rest_framework.renderers.JSONRenderer",
-        "rest_framework.renderers.BrowsableAPIRenderer",
-    ],
 }
 
-# -------------------------------------------------------------------
-# Simple JWT
-# -------------------------------------------------------------------
+# ===============================================================
+# SIMPLE JWT CONFIGURATION
+# ===============================================================
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("ACCESS_TOKEN_MIN", "5"))),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "ALGORITHM": "HS256",
+
     "SIGNING_KEY": SECRET_KEY,
+    "ALGORITHM": "HS256",
+
     "AUTH_HEADER_TYPES": ("Bearer",),
+
+    # Cookies
     "AUTH_COOKIE": "refresh_token",
     "AUTH_COOKIE_HTTP_ONLY": True,
     "AUTH_COOKIE_SECURE": not DEBUG,
     "AUTH_COOKIE_SAMESITE": "None" if not DEBUG else "Lax",
 }
 
-# -------------------------------------------------------------------
-# CORS & CSRF
-# -------------------------------------------------------------------
+# ===============================================================
+# CORS / CSRF FIX (Required for Next.js)
+# ===============================================================
+
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = list(default_headers) + ["x-csrftoken"]
+CORS_ALLOW_ALL_ORIGINS = False  # Very important for security
 
 SERVER_IP = os.getenv("SERVER_IP", "13.49.70.126")
 
+# Allowed frontend domains
 CORS_ALLOWED_ORIGINS = [
     f"https://{SERVER_IP}",
     f"http://{SERVER_IP}",
+
     "http://localhost:3000",
     "https://localhost:3000",
+
     "https://next-e-commerce.onrender.com",
 ]
 
+# CSRF trusted domains
 CSRF_TRUSTED_ORIGINS = [
     f"https://{SERVER_IP}",
     "https://next-e-commerce.onrender.com",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = False
+# Fix CORS Preflight (OPTIONS)
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+]
 
-# -------------------------------------------------------------------
-# Security
-# -------------------------------------------------------------------
-SECURE_SSL_REDIRECT = not DEBUG
+# Fix Access-Control-Request-Headers: content-type
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "content-type",
+    "authorization",
+    "x-csrftoken",
+]
+
+# ===============================================================
+# SECURITY
+# ===============================================================
+
+# Required for IP HTTPS. Browser blocks redirects for CORS.
+SECURE_SSL_REDIRECT = False
+
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 
@@ -199,9 +262,9 @@ SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
 
-# -------------------------------------------------------------------
-# Email
-# -------------------------------------------------------------------
+# ===============================================================
+# EMAIL
+# ===============================================================
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
@@ -210,9 +273,9 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 
-# -------------------------------------------------------------------
-# Jazzmin Admin UI Tweaks
-# -------------------------------------------------------------------
+# ===============================================================
+# JAZZMIN UI
+# ===============================================================
 JAZZMIN_UI_TWEAKS = {
     "theme": "darkly",
     "dark_mode_theme": "cyborg",
@@ -220,28 +283,20 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar": "sidebar-dark-primary elevation-4",
     "brand_colour": "navbar-primary",
     "accent": "accent-info",
-    "button_classes": {
-        "primary": "btn btn-primary btn-lg rounded-pill shadow",
-        "secondary": "btn btn-outline-secondary rounded-pill",
-    },
     "sidebar_nav_small_text": True,
     "footer_fixed": True,
     "navbar_fixed": True,
 }
 
-# --- DEBUG LOG (remove after debugging) -----------------------
-# These logs will show up in gunicorn/journalctl to confirm the loaded values.
-# Remove this block after you confirm the CORS/CSRF values are correct.
+# ===============================================================
+# DEBUG LOGGING
+# ===============================================================
 import logging
 logger = logging.getLogger("django")
 
 logger.error("=== Django settings debug start ===")
-try:
-    logger.error("CORS_ALLOWED_ORIGINS => %s", CORS_ALLOWED_ORIGINS)
-    logger.error("CSRF_TRUSTED_ORIGINS => %s", CSRF_TRUSTED_ORIGINS)
-    logger.error("DEBUG => %s", DEBUG)
-    logger.error("ALLOWED_HOSTS => %s", ALLOWED_HOSTS)
-except Exception as e:
-    logger.error("Error printing settings debug: %s", e)
+logger.error("CORS_ALLOWED_ORIGINS => %s", CORS_ALLOWED_ORIGINS)
+logger.error("CSRF_TRUSTED_ORIGINS => %s", CSRF_TRUSTED_ORIGINS)
+logger.error("DEBUG => %s", DEBUG)
+logger.error("ALLOWED_HOSTS => %s", ALLOWED_HOSTS)
 logger.error("=== Django settings debug end ===")
-# --------------------------------------------------------------
