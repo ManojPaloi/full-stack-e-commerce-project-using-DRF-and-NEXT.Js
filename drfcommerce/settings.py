@@ -1,6 +1,7 @@
 """
 =========================================
- Django Settings – Full CORS + CSRF FIXED
+ Django Settings – FULL WORKING VERSION
+ CORS + CSRF + JWT Cookies for EC2 + Render
 =========================================
 """
 
@@ -26,7 +27,6 @@ ALLOWED_HOSTS = [
     "next-e-commerce.onrender.com",
     "localhost",
     "127.0.0.1",
-    "*",
 ]
 
 # ---------------------------------------
@@ -43,7 +43,7 @@ INSTALLED_APPS = [
 
     "corsheaders",
 
-    # Local
+    # Local Apps
     "accounts",
     "category",
     "banner",
@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     "oders",
     "coupons",
 
-    # Third-party
+    # Third Party
     "rest_framework",
     "rest_framework_simplejwt",
     "django_filters",
@@ -127,13 +127,12 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "AUTH_HEADER_TYPES": ("Bearer",),
 
-    # COOKIE SETTINGS FOR REFRESH TOKEN
+    # Cookie-based refresh token
     "AUTH_COOKIE": "refresh_token",
     "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_SECURE": False,       # EC2 IP → cannot use HTTPS
-    "AUTH_COOKIE_SAMESITE": "Lax",
+    "AUTH_COOKIE_SECURE": False,  # EC2 IP (http)
+    "AUTH_COOKIE_SAMESITE": "None",
 }
 
 # ---------------------------------------
@@ -145,39 +144,36 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# ---------------------------------------
-# =======================
-#  CORS + CSRF FIX (FINAL)
-# =======================
-# ---------------------------------------
+# ----------------------------------------------------
+# FINAL CORS + CSRF CONFIG (FOR EC2 + Render)
+# ----------------------------------------------------
 
-CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "https://next-e-commerce.onrender.com",
-    f"http://{SERVER_IP}",       # EC2 SERVER
-    "http://localhost:3000",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://next-e-commerce.onrender.com",
     f"http://{SERVER_IP}",
+    f"https://{SERVER_IP}",
 ]
 
 CORS_ALLOW_METHODS = list(default_methods)
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "content-type",
-    "x-csrftoken",
     "authorization",
+    "x-csrftoken",
 ]
 
 # ---------------------------------------
-# NO HTTPS because server uses IP
+# COOKIES (EC2 uses HTTP)
 # ---------------------------------------
-SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
+SECURE_SSL_REDIRECT = False
 
 # ---------------------------------------
 # EMAIL (GMAIL)
