@@ -159,13 +159,10 @@ SIMPLE_JWT = {
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
-    # Using cookie for refresh token — during local/IP testing keep cookies non-secure.
     "AUTH_COOKIE": "refresh_token",
     "AUTH_COOKIE_HTTP_ONLY": True,
-    # IMPORTANT: When running on plain HTTP (IP) these must be False/Lax so the browser will accept them.
-    # In production (HTTPS) set AUTH_COOKIE_SECURE = True and AUTH_COOKIE_SAMESITE = "None".
-    "AUTH_COOKIE_SECURE": False,
-    "AUTH_COOKIE_SAMESITE": "Lax",
+    "AUTH_COOKIE_SECURE": not DEBUG,
+    "AUTH_COOKIE_SAMESITE": "None" if not DEBUG else "Lax",
 }
 
 # -------------------------------------------------------------------
@@ -185,27 +182,22 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    f"http://{SERVER_IP}",
     f"https://{SERVER_IP}",
     "https://next-e-commerce.onrender.com",
 ]
 
-# Keep CORS_ALLOW_ALL_ORIGINS False in most cases; only enable for quick local testing.
 CORS_ALLOW_ALL_ORIGINS = False
 
 # -------------------------------------------------------------------
 # Security
 # -------------------------------------------------------------------
-# NOTE: For an IP-based server without TLS terminate, disable forcing HTTPS and secure cookies.
-#       When you deploy behind HTTPS (a domain with valid certs) revert these values appropriately.
-SECURE_SSL_REDIRECT = False
-CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SECURE = False
+SECURE_SSL_REDIRECT = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
 
-# HSTS should be disabled for non-HTTPS / testing environments
-SECURE_HSTS_SECONDS = 0
-SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-SECURE_HSTS_PRELOAD = False
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
 
 # -------------------------------------------------------------------
 # Email
@@ -253,13 +245,3 @@ except Exception as e:
     logger.error("Error printing settings debug: %s", e)
 logger.error("=== Django settings debug end ===")
 # --------------------------------------------------------------
-
-# -------------------------------
-# Quick notes:
-# - This settings.py is configured for an IP-based server without TLS. If you add TLS/HTTPS (recommended)
-#   - set SECURE_SSL_REDIRECT = True
-#   - set CSRF_COOKIE_SECURE = True and SESSION_COOKIE_SECURE = True
-#   - set SIMPLE_JWT['AUTH_COOKIE_SECURE'] = True and SIMPLE_JWT['AUTH_COOKIE_SAMESITE'] = 'None'
-#   - set appropriate CSRF_TRUSTED_ORIGINS entries to https://your-domain
-# - After changing settings, restart your Django/gunicorn service and (if using browsers) clear site data or open devtools -> disable cache to re-test preflight.
-# -------------------------------
