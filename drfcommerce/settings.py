@@ -16,7 +16,7 @@ load_dotenv(str(BASE_DIR / ".env"))
 # -------------------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-production")
 DEBUG = os.getenv("DEBUG", "False").lower() in ["true", "1", "yes"]
-ALLOWED_HOSTS = ['13.49.70.126', "next-e-commerce.onrender.com", "*"]
+ALLOWED_HOSTS = ['13.51.195.39', "next-e-commerce.onrender.com", "*"]
 
 # -------------------------------------------------------------------
 # Installed Apps
